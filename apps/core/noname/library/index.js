@@ -34,7 +34,7 @@ export class Library {
 	updateURLS = updateURLs;
 	updateURL = updateURLs.github;
 	mirrorURL = updateURLs.coding;
-	hallURL = "";
+	hallURL = "wss://tkser.zhouwj.tech:5443";
 	assetURL = assetURL;
 	userAgent = userAgentLowerCase;
 	characterDefaultPicturePath = characterDefaultPicturePath;
@@ -7555,7 +7555,7 @@ export class Library {
 					frequent: true,
 					onclick(item) {
 						game.saveConfig("connect_nickname", item);
-						game.saveConfig("connect_avatar", item, "connect");
+						game.saveConfig("connect_nickname", item, "connect");
 					},
 				},
 				connect_avatar: {
@@ -7615,26 +7615,7 @@ export class Library {
 						}
 					},
 				},
-				hall_ip: {
-					name: "联机大厅",
-					input: true,
-					frequent: true,
-				},
-				hall_button: {
-					name: "联机大厅按钮",
-					init: true,
-					frequent: true,
-					onclick(bool) {
-						game.saveConfig("hall_button", bool, "connect");
-						if (ui.hall_button) {
-							if (bool) {
-								ui.hall_button.style.display = "";
-							} else {
-								ui.hall_button.style.display = "none";
-							}
-						}
-					},
-				},
+
 				wss_mode: {
 					name: "使用WSS协议",
 					init: false,
@@ -7648,8 +7629,8 @@ export class Library {
 				},
 				read_clipboard: {
 					name: "读取邀请链接",
-					init: true,
-					frequent: true,
+					init: false,
+					frequent: false,
 					intro: "读取剪贴板以解析邀请链接自动加入联机房间",
 				},
 				check_versionLocal: {
@@ -13029,12 +13010,12 @@ export class Library {
 							ui.rooms.push(player);
 						}
 					}
-					if (!_status.requestReadClipboard && get.config("read_clipboard", "connect")) {
+					if (!_status.requestReadClipboard && _status.read_clipboard_text) {
 						const read = text => {
 							try {
 								var roomId = text.split("\n")[1].match(/\d+/);
 								var caption = ui.rooms.find(caption => caption.key == roomId);
-								if (caption && (_status.read_clipboard_text || confirm(`是否通过复制的内容加入${roomId}房间？`))) {
+								if (caption) {
 									ui.click.connectroom.call(caption);
 									delete _status.read_clipboard_text;
 								}
@@ -13042,34 +13023,8 @@ export class Library {
 								console.log(e);
 							}
 						};
-						//每次启动只请求一次
 						_status.requestReadClipboard = true;
-						if (_status.read_clipboard_text) {
-							read(_status.read_clipboard_text);
-						} else {
-							window.focus();
-							if (navigator.clipboard && lib.node) {
-								navigator.clipboard
-									.readText()
-									.then(read)
-									.catch(_ => {});
-							} else {
-								var input = ui.create.node("textarea", ui.window, { opacity: "0" });
-								input.select();
-								var result = document.execCommand("paste");
-								input.blur();
-								ui.window.removeChild(input);
-								if (result || input.value.length > 0) {
-									read(input.value);
-								} else if (confirm("是否输入邀请链接以加入房间？")) {
-									game.prompt("请输入邀请链接", text => {
-										if (typeof text === "string" && text.length > 0) {
-											read(text);
-										}
-									});
-								}
-							}
-						}
+						read(_status.read_clipboard_text);
 					}
 				}
 				lib.message.client.updateclients(clients, true);
@@ -13140,7 +13095,7 @@ export class Library {
 				if (game.servermode) {
 					ui.create.connectPlayers(get.modetrans(config, true));
 				} else {
-					ui.create.connectPlayers(ip);
+					ui.create.connectPlayers(game.roomId ? `房间：${game.roomId}` : (get.modetrans(config, true) || ""));
 				}
 				ui.pause.hide();
 				ui.auto.hide();

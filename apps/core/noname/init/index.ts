@@ -40,6 +40,7 @@ export async function boot() {
 	setOnError({ lib, game, get, _status });
 
 	await loadConfig();
+	get.assignRandomPlayerIdentity();
 
 	// 兼容原有鏖战布尔设置，保持原规则并正确显示新的选择菜单。
 	for (const mode of ["guozhan", "connect"]) {
@@ -296,8 +297,9 @@ export async function boot() {
 
 	// 在dom加载完后执行相应的操作
 	await new Promise(resolve => {
-		if (document.readyState !== "complete") {
-			window.onload = resolve;
+		if (document.readyState === "loading") {
+			document.addEventListener("DOMContentLoaded", () => resolve(void 0), { once: true });
+			window.addEventListener("load", () => resolve(void 0), { once: true });
 		} else {
 			resolve(void 0);
 		}
@@ -343,8 +345,8 @@ export async function boot() {
 
 	if (localStorage.getItem(`${lib.configprefix}playback`)) {
 		toLoad.push(importMode(config.get("mode")));
-	} else if ((localStorage.getItem(`${lib.configprefix}directstart`) || !show_splash) && config.get("all").mode.includes(config.get("mode"))) {
-		toLoad.push(importMode(config.get("mode")));
+	} else {
+		toLoad.push(importMode("connect"));
 	}
 
 	for (const cardPack of config.get("all").cards) {
@@ -525,7 +527,7 @@ export async function boot() {
 	lib.connectCharacterPack = [];
 	lib.connectCardPack = [];
 
-	const currentMode = lib.imported.mode[lib.config.mode];
+	const currentMode = lib.imported.mode[lib.config.mode] || lib.imported.mode["connect"];
 	loadMode(currentMode);
 	// 为了模式扩展，两个东西删不了
 	lib.init.start = currentMode.start;
@@ -534,6 +536,16 @@ export async function boot() {
 	if (lib.imported.character != null) {
 		Object.values(lib.imported.character).forEach(loadCharacter);
 	}
+
+	// 联机模式默认武将包只保留标准包
+	if (!lib.config.connect_characters_init_v2) {
+		lib.config.connect_characters = lib.connectCharacterPack.filter(name => name !== "standard");
+		lib.config.connect_characters_init_v2 = true;
+		game.saveConfig("connect_characters", lib.config.connect_characters);
+		game.saveConfig("connect_characters_init_v2", true);
+	}
+
+	lib.config.new_tutorial = true;
 
 	loadCardPile();
 
@@ -855,11 +867,10 @@ async function loadConfig() {
 		result = await game.getDB("config");
 	}
 
-	// 读取模式
-	if (result.mode) {
-		config.set("mode", result.mode);
-	}
-	config.get("mode_config")[config.get("mode")] ??= {};
+	// 读取模式：固定为联机模式
+	config.set("mode", "connect");
+	config.set("show_splash", "off");
+	config.get("mode_config")["connect"] ??= {};
 
 	// 复制共有模式设置
 	for (const name in config.get("mode_config").global) {

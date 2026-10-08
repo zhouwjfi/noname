@@ -2,6 +2,7 @@ import type { IncomingMessage } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 
 import type { ServerInstance, ServerOptions } from "../types";
+import { resolveClientIp } from "./ip";
 
 interface Client extends WebSocket {
 	wsid: string;
@@ -39,6 +40,7 @@ interface EventItem {
 
 export function createServer(options: ServerOptions = {}): ServerInstance {
 	const port = options.port ?? 8082;
+	const trustedProxies = options.trustedProxies ?? [];
 
 	const clients = new Map<string, Client>();
 	const rooms = new Map<string, Room>();
@@ -292,7 +294,7 @@ export function createServer(options: ServerOptions = {}): ServerInstance {
 
 	const handleConnection = (ws: WebSocket, req: IncomingMessage) => {
 		const client = ws as Client;
-		const ip = req.socket.remoteAddress ?? "";
+		const ip = resolveClientIp(req, trustedProxies);
 
 		// ban check
 		if (bannedIps.has(ip)) {

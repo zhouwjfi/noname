@@ -877,6 +877,55 @@ export class Get {
 	connectNickname() {
 		return typeof lib.config.connect_nickname == "string" ? lib.config.connect_nickname.slice(0, 12) : "无名玩家";
 	}
+	randomPlayerIdentity() {
+		const avatars = [
+			"caocao", "simayi", "xiahoudun", "zhangliao", "xuzhu", "guojia", "zhenji",
+			"liubei", "guanyu", "zhangfei", "zhugeliang", "zhaoyun", "machao", "huangzhong",
+			"sunquan", "ganning", "lvmeng", "huanggai", "zhouyu", "daqiao", "luxun", "sunshangxiang",
+			"huatuo", "lvbu", "diaochan"
+		];
+		const prefixes = [
+			"无双", "绝尘", "热血", "破军", "逍遥", "影舞", "风暴", "傲天", "追风", "御风",
+			"疾雷", "霸气", "灵动", "玄奇", "天命", "赤焰", "寒霜", "苍狼", "惊鸿", "星河",
+			"横刀", "白衣", "青梅", "问天", "纵横", "倚天", "青龙", "白虎", "朱雀", "玄武",
+			"破晓", "逐鹿", "踏雪", "醉饮", "沧海", "紫霄", "狂歌", "落霞", "凌云", "啸月",
+			"问鼎", "定军", "开山", "雷霆", "潜龙", "鸣镝", "烽火", "铁骑", "赤胆", "丹心"
+		];
+		const suffixes = [
+			"子龙", "奉先", "云长", "翼德", "公瑾", "孟德", "仲谋", "文远", "仲达", "伯约",
+			"汉升", "孟起", "玄德", "子敬", "伯言", "元让", "子孝", "恶来", "妙才", "士元",
+			"少侠", "游侠", "剑客", "豪杰", "狂士", "策士", "隐士", "将军", "谋士", "先锋",
+			"霸王", "军师", "刺客", "统帅", "国士", "贤者", "游子", "书生", "武痴", "刀客",
+			"奇才", "剑仙", "羽客", "宗师", "督军", "勇士", "都督", "参军", "校尉", "义士"
+		];
+		const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)];
+		const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+		const randomSuffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+		const randomNickname = `${randomPrefix}${randomSuffix}`;
+		return { avatar: randomAvatar, nickname: randomNickname };
+	}
+	assignRandomPlayerIdentity(force = false) {
+		if (
+			!force &&
+			sessionStorage.getItem("random_identity_assigned") &&
+			lib.config.connect_nickname &&
+			lib.config.connect_nickname !== "无名玩家" &&
+			!lib.config.connect_nickname.includes("_")
+		) {
+			return;
+		}
+		sessionStorage.setItem("random_identity_assigned", "true");
+		const { avatar, nickname } = this.randomPlayerIdentity();
+		lib.config.connect_avatar = avatar;
+		lib.config.connect_nickname = nickname;
+		if (typeof game.saveConfig === "function") {
+			game.saveConfig("connect_avatar", avatar);
+			game.saveConfig("connect_avatar", avatar, "connect");
+			game.saveConfig("connect_nickname", nickname);
+			game.saveConfig("connect_nickname", nickname, "connect");
+		}
+		return { avatar, nickname };
+	}
 	/**
 	 * 返回智囊牌名组成的数组
 	 * @param { Function | boolean } [filter]

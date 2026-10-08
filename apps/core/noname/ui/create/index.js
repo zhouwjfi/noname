@@ -3659,16 +3659,24 @@ export class Create {
 			game.connectPlayers.push(player);
 		}
 
-		var bar = ui.create.div(ui.window);
-		bar.style.height = "20px";
-		bar.style.width = "80%";
-		bar.style.left = "10%";
-		bar.style.top = "calc(200% / 7 - 120px + 5px)";
-		bar.style.textAlign = "center";
-		var ipbar = ui.create.div(".shadowed", ip, bar);
-		ipbar.style.padding = "4px";
-		ipbar.style.borderRadius = "2px";
-		ipbar.style.position = "relative";
+		var text = ip;
+		if (typeof text === "string" && (text.startsWith("ws://") || text.startsWith("wss://") || text.includes("://") || text.includes("tkser") || text.includes("zhouwj.tech"))) {
+			text = game.roomId ? `房间：${game.roomId}` : "";
+		}
+
+		var bar;
+		if (text) {
+			bar = ui.create.div(ui.window);
+			bar.style.height = "20px";
+			bar.style.width = "80%";
+			bar.style.left = "10%";
+			bar.style.top = "calc(200% / 7 - 120px + 5px)";
+			bar.style.textAlign = "center";
+			var ipbar = ui.create.div(".shadowed", text, bar);
+			ipbar.style.padding = "4px";
+			ipbar.style.borderRadius = "2px";
+			ipbar.style.position = "relative";
+		}
 
 		var button = ui.create.div(".menubutton.large.highlight.connectbutton.connectbutton1.pointerdiv", game.online ? "退出联机" : "开始游戏", ui.window, function () {
 			if (button.clicked) {
@@ -3697,63 +3705,14 @@ export class Create {
 				game.resume();
 			}
 			button.delete();
-			bar.delete();
-			shareButton.delete();
+			if (bar) bar.delete();
 			delete ui.connectStartButton;
 			delete ui.connectStartBar;
-			delete ui.connectShareButton;
 			button.clicked = true;
 		});
 
-		var shareButton = ui.create.div(".menubutton.large.highlight.connectbutton.connectbutton2.pointerdiv", "分享房间", ui.window, function () {
-			var text = `无名杀-联机-${lib.translate[get.mode()]}-${game.connectPlayers.filter(p => p.avatar).length}/${game.connectPlayers.filter(p => !p.classList.contains("unselectable2")).length}\n${get.connectNickname()}邀请你加入${game.roomId}房间\n联机地址:${game.ip}\n请先通过游戏内菜单-开始-联机中启用“读取邀请链接”选项`;
-			window.focus();
-			const fallbackCopyTextToClipboard = function (text) {
-				const textArea = document.createElement("textarea");
-				textArea.value = text;
-				textArea.style.position = "fixed";
-				textArea.style.top = "0";
-				textArea.style.left = "0";
-				textArea.style.width = "1px";
-				textArea.style.height = "1px";
-				textArea.style.padding = "0";
-				textArea.style.border = "none";
-				textArea.style.outline = "none";
-				textArea.style.boxShadow = "none";
-				textArea.style.background = "transparent";
-				document.body.appendChild(textArea);
-				textArea.focus();
-				textArea.select();
-				try {
-					const successful = document.execCommand("copy");
-					if (!successful) {
-						console.error("Unable to copy using execCommand");
-						game.promises.prompt(`###分享内容复制失败，请自行复制以下内容###${text}`, true);
-					} else {
-						game.alert("分享内容复制成功");
-					}
-				} catch (err) {
-					console.error("Unable to copy using execCommand:", err);
-				}
-				document.body.removeChild(textArea);
-			};
-			if ("clipboard" in navigator) {
-				navigator.clipboard
-					.writeText(text)
-					.then(() => {
-						game.alert("分享内容复制成功");
-					})
-					.catch(() => {
-						fallbackCopyTextToClipboard(text);
-					});
-			} else {
-				fallbackCopyTextToClipboard(text);
-			}
-		});
-
 		ui.connectStartButton = button;
-		ui.connectStartBar = bar;
-		ui.connectShareButton = shareButton;
+		if (bar) ui.connectStartBar = bar;
 	}
 	players(numberOfPlayers) {
 		if (numberOfPlayers === 0) {

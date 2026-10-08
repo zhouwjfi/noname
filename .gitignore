@@ -6,6 +6,7 @@ package-lock.json
 # IDE
 .idea/
 .vscode/
+.commandcode/
 
 # macOS
 ._*

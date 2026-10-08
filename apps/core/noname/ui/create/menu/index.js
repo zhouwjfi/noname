@@ -323,7 +323,7 @@ export function createConfig(config, position) {
 			}
 		};
 		if (config.name == "联机昵称") {
-			input.innerHTML = config.init || "无名玩家";
+			input.innerHTML = lib.config.connect_nickname || config.init || "无名玩家";
 			input.onblur = function () {
 				input.innerHTML = input.innerHTML.replace(/<br>/g, "");
 				if (!input.innerHTML || get.is.banWords(input.innerHTML)) {

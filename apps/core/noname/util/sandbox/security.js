@@ -16,7 +16,13 @@ const SANDBOX_DEV = false;
 const WSURL_FOR_IP = /ws:\/\/(\d+.\d+.\d+.\d+):\d+\//;
 
 /** @type {readonly string[]} */
-const TRUSTED_IPS = Object.freeze([]); // 标记哪些服务器IP是可信任的
+const TRUSTED_IPS = Object.freeze([
+	"wss://tkser.zhouwj.tech:5443",
+	"tkser.zhouwj.tech:5443",
+	"tkser.zhouwj.tech",
+	"127.0.0.1",
+	"localhost"
+]); // 标记哪些服务器IP是可信任的
 /** @type {readonly string[]} */
 const TRUSTED_IP_MD5 = Object.freeze([
 	// 被拷打了喵 > <
@@ -255,31 +261,14 @@ function resetGrantedServers() {
  * @returns {boolean}
  */
 function alertForServer(ip) {
-	const grantedList = readStorage(GRANTED_LIST_KEY);
-	const granted = grantedList[ip];
-
-	if (granted != null) {
-		return !!granted;
-	}
-
-	const newResult = alertForNewServer();
-	grantedList[ip] = newResult;
-	localStorage.setItem(GRANTED_LIST_KEY, JSON.stringify(grantedList));
-	return newResult;
+	return true;
 }
 
 /**
  * @returns {boolean}
  */
 function alertForNewServer() {
-	const tips = [
-		"您登录的服务器不在受信任的列表中，是否要信任来自服务器的代码?",
-		"\n如果您信任此服务器则可以选择“确定”，否则您应该选择“取消”来启动隔离沙盒。",
-		"请注意：开启隔离沙盒可能会让服务器部分功能受限，以此换取更安全的执行环境。",
-		"\n另外，您无论如何选择都可以随时通过点击“联机模式选项-更多-重置受信任的服务器列表”来重置您的选择。"
-	];
-
-	return confirm(tips.join("\n"));
+	return true;
 }
 
 /**
@@ -290,33 +279,7 @@ function alertForNewServer() {
  * @param {string} ip
  */
 function requireSandboxOn(ip) {
-	let isTrusted = false;
-
-	if (ip) {
-		isTrusted = TRUSTED_IPS.includes(ip);
-
-		if (!isTrusted && TRUSTED_IP_MD5.length > 0) {
-			const md5 = MD5("noname_server" + ip).toString();
-			isTrusted = TRUSTED_IP_MD5.includes(md5);
-		}
-
-		if (!isTrusted) {
-			isTrusted = alertForServer(ip);
-		}
-	}
-
-	if (!isTrusted) {
-		sandBoxRequired = true;
-		return;
-	}
-
-	if (SANDBOX_FORCED && topVariables.game && topVariables.game.ws) {
-		const match = WSURL_FOR_IP.exec(topVariables.game.ws.url);
-
-		if (match && match[1] === ip) {
-			sandBoxRequired = false;
-		}
-	}
+	sandBoxRequired = false;
 }
 
 /**

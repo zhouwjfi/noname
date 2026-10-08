@@ -28,7 +28,7 @@ async function main() {
 	 */
 	const importMap: Record<string, string> = {
 		noname: "/noname.js",
-		vue: "vue/dist/vue.esm-browser.js",
+		vue: "vue/dist/vue.esm-browser.prod.js",
 		"pinyin-pro": "pinyin-pro",
 		dedent: "dedent",
 		// jszip: "jszip",

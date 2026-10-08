@@ -27,6 +27,7 @@ const failedJson = <T = any>(code: number, message?: string): JsonResult<T> => (
 export const defaultConfig = {
 	server: false,
 	port: 8089,
+	host: "0.0.0.0",
 	debug: false,
 	dirname: cwd(),
 };
@@ -221,7 +222,7 @@ export default function createApp(config: Partial<typeof defaultConfig> = {}) {
 	// } else {
 	// 	app.listen(config.port, callback);
 	// }
-	app.listen({ port: cfg.port }, callback);
+	app.listen({ port: cfg.port, host: cfg.host }, callback);
 
 	return app;
 }

@@ -14,8 +14,23 @@ function readPort(): number {
 	return port;
 }
 
+function readTrustedProxies(): string[] {
+	const argIndex = process.argv.findIndex(arg => arg === "--trust-proxy");
+	const raw = argIndex === -1 ? process.env.TRUST_PROXY : process.argv[argIndex + 1];
+
+	if (!raw) {
+		return [];
+	}
+
+	return raw
+		.split(",")
+		.map(entry => entry.trim())
+		.filter(entry => entry.length > 0);
+}
+
 const port = readPort();
-const server = createServer({ port });
+const trustedProxies = readTrustedProxies();
+const server = createServer({ port, trustedProxies });
 
 const stop = async () => {
 	await server.stop();
@@ -28,6 +43,9 @@ process.on("SIGTERM", stop);
 async function main() {
 	await server.start();
 	console.log(`Server listening on port ${port}`);
+	if (trustedProxies.length) {
+		console.log(`Trusted proxies: ${trustedProxies.join(", ")}`);
+	}
 }
 
 main().catch(error => {

@@ -3469,10 +3469,7 @@ div.select-all:not(.card):not(.player) {
 	width: 130px;
 }
 .connectbutton1 {
-	left: calc(50% - 200px);
-}
-.connectbutton2 {
-	left: calc(50% + 60px);
+	left: calc(50% - 65px);
 }
 .connectevents {
 	left: auto;

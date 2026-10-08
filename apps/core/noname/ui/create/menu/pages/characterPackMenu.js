@@ -489,6 +489,25 @@ export const characterPackMenu = function (connectMenu) {
 		node1.style.marginTop = "12px";
 		node3.style.marginTop = "7px";
 		node2.style.marginTop = "2px";
+	} else {
+		var node1 = ui.create.div(".lefttext", "仅保留标准", start.firstChild, function () {
+			lib.config.connect_characters = lib.connectCharacterPack.filter(mode => mode !== "standard");
+			game.saveConfig("connect_characters", lib.config.connect_characters);
+			updateNodes();
+		});
+		var node2 = ui.create.div(".lefttext", "全部开启", start.firstChild, function () {
+			lib.config.connect_characters = ["diy"];
+			game.saveConfig("connect_characters", lib.config.connect_characters);
+			updateNodes();
+		});
+		var node3 = ui.create.div(".lefttext", "全部关闭", start.firstChild, function () {
+			lib.config.connect_characters = lib.connectCharacterPack.slice();
+			game.saveConfig("connect_characters", lib.config.connect_characters);
+			updateNodes();
+		});
+		node1.style.marginTop = "12px";
+		node2.style.marginTop = "7px";
+		node3.style.marginTop = "2px";
 	}
 
 	updateNodes();

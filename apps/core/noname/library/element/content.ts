@@ -4491,7 +4491,7 @@ export const Content: Record<string, ContentFuncByAll | ContentFuncsByAll> = {
 			game.send("server", "config", lib.configOL);
 		}
 
-		ui.create.connectPlayers(game.ip);
+		ui.create.connectPlayers(game.roomId ? `房间：${game.roomId}` : "");
 
 		const me = game.connectPlayers[0];
 		me.setIdentity("zhu");

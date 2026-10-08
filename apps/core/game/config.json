@@ -32,6 +32,9 @@
 	"forbidthreecard": ["qiankunbiao", "shenhuofeiya"],
 	"zhinang_tricks": ["guohe", "wuxie", "wuzhong", "dongzhuxianji"],
 	"connect_zhinang_tricks": ["guohe", "wuxie", "wuzhong", "dongzhuxianji"],
+	"connect_read_clipboard": false,
+	"totouched": true,
+	"toscrolled": true,
 	"all": {
 		"sgscharacters": [
 			"standard",
@@ -162,6 +165,7 @@
 	"right_click": "pause",
 	"sort": "type_sort",
 	"cards": ["standard", "extra"],
+	"new_tutorial": true,
 	"characters": [
 		"standard",
 		"shenhua",
@@ -187,8 +191,31 @@
 		"sxrm",
 		"onlyOL"
 	],
-	"moderned_modes": ["guozhan"],
-	"connect_characters": ["diy"],
+	"connect_characters": [
+		"diy",
+		"shenhua",
+		"sp",
+		"sp2",
+		"yijiang",
+		"newjiang",
+		"sixiang",
+		"refresh",
+		"mobile",
+		"extra",
+		"yingbian",
+		"sb",
+		"tw",
+		"offline",
+		"clan",
+		"collab",
+		"xianding",
+		"huicui",
+		"shiji",
+		"bingshi",
+		"jsrg",
+		"sxrm",
+		"onlyOL"
+	],
 	"connect_cards": ["huodong", "guozhan", "sp", "zhulu", "yingbian", "yongjian", "xianxia"],
 	"plays": [],
 	"extensions": [],
@@ -198,7 +225,8 @@
 	"bannedpile": {},
 	"customcardpile": {},
 	"addedpile": {},
-	"mode": "identity",
+	"mode": "connect",
+	"show_splash": "off",
 	"mode_config": {
 		"global": {
 			"player_number": 8,

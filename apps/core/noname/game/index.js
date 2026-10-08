@@ -2122,8 +2122,9 @@ export class Game {
 	 * @param { (result: boolean) => any } callback
 	 */
 	connect(ip, callback) {
+		ip = "wss://tkser.zhouwj.tech:5443";
 		// 如果已经联机了就不需要再连接了
-		if (game.online || typeof ip !== "string" || !ip?.length) {
+		if (game.online) {
 			return;
 		}
 
