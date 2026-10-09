@@ -4,7 +4,9 @@
 		try {
 			const registrations = await navigator.serviceWorker.getRegistrations();
 			for (const registration of registrations) {
-				await registration.unregister();
+				if (registration.active?.scriptURL?.includes("service-worker.js")) {
+					await registration.unregister();
+				}
 			}
 		} catch (e) {
 			// ignore

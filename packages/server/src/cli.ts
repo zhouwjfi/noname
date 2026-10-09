@@ -28,9 +28,22 @@ function readTrustedProxies(): string[] {
 		.filter(entry => entry.length > 0);
 }
 
+function readMaxRooms(): number {
+	const argIndex = process.argv.findIndex(arg => arg === "--max-rooms");
+	const raw = argIndex === -1 ? process.env.MAX_ROOMS : process.argv[argIndex + 1];
+	const maxRooms = Number(raw ?? 2);
+
+	if (!Number.isInteger(maxRooms) || maxRooms < 0) {
+		throw new Error(`Invalid maxRooms: ${raw}`);
+	}
+
+	return maxRooms;
+}
+
 const port = readPort();
 const trustedProxies = readTrustedProxies();
-const server = createServer({ port, trustedProxies });
+const maxRooms = readMaxRooms();
+const server = createServer({ port, trustedProxies, maxRooms });
 
 const stop = async () => {
 	await server.stop();
@@ -42,7 +55,7 @@ process.on("SIGTERM", stop);
 
 async function main() {
 	await server.start();
-	console.log(`Server listening on port ${port}`);
+	console.log(`Server listening on port ${port} (max rooms: ${maxRooms})`);
 	if (trustedProxies.length) {
 		console.log(`Trusted proxies: ${trustedProxies.join(", ")}`);
 	}
