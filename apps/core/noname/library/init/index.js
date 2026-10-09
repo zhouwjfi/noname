@@ -14,9 +14,11 @@ export class LibInit {
 	}
 
 	reset() {
-		if (window.inSplash) {
+		if (window.inSplash || _status.gameStarted || _status.connectMode || document.getElementById("boot-loader") || (window.__bootProgressPct > 0 && window.__bootProgressPct < 100)) {
 			return;
 		}
+		clearTimeout(window.resetGameTimeout);
+		delete window.resetGameTimeout;
 		if (window.resetExtension) {
 			if (confirm("游戏似乎未正常载入，有可能因为部分扩展未正常载入，或者因为部分扩展未载入完毕。\n是否禁用扩展并重新打开？")) {
 				window.resetExtension();
@@ -94,14 +96,12 @@ export class LibInit {
 	];
 
 	onfree() {
+		clearTimeout(window.resetGameTimeout);
+		delete window.resetGameTimeout;
+		delete window.resetExtension;
+		window.finishBootProgress && window.finishBootProgress();
+		localStorage.removeItem(lib.configprefix + "disable_extension");
 		if (lib.onfree) {
-			clearTimeout(window.resetGameTimeout);
-			delete window.resetGameTimeout;
-			if (!game.syncMenu) {
-				delete window.resetExtension;
-				localStorage.removeItem(lib.configprefix + "disable_extension");
-			}
-
 			if (game.removeFile && lib.config.brokenFile.length) {
 				while (lib.config.brokenFile.length) {
 					game.removeFile(lib.config.brokenFile.shift());

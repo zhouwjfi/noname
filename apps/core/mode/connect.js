@@ -108,7 +108,10 @@ export default () => {
 				ui.window.appendChild(button);
 				ui.ipbutton = button;
 
-				connect();
+				// 端到端自动化测试（?test=1&offline=1）跳过大厅自动连接，保持单机确定性
+				if (!window.__noname_test_offline__) {
+					connect();
+				}
 
 				lib.init.onfree();
 			};

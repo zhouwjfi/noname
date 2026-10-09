@@ -9006,11 +9006,13 @@ export class Library {
 		if (forceclick) {
 			node.forceclick = true;
 		}
-		if (lib.config.touchscreen || forceclick) {
+		if (typeof node.listen === "function") {
 			node.listen(ui.click.hoverpopped);
 		} else {
+			node.addEventListener("click", ui.click.hoverpopped);
+		}
+		if (!lib.config.touchscreen) {
 			node.addEventListener("mouseenter", ui.click.hoverpopped);
-			// node.addEventListener('mouseleave',ui.click.hoverpopped_leave);
 		}
 		if (paused2) {
 			node._paused2 = true;
@@ -12616,6 +12618,11 @@ export class Library {
 					player.chat(str);
 				}
 			},
+			voice(fromWsid, payload) {
+				if (game.voice) {
+					game.voice.onReceive(fromWsid, payload);
+				}
+			},
 			/**
 			 * ```plain
 			 * 当客机向主机发送投降请求时的回调
@@ -12797,7 +12804,20 @@ export class Library {
 					lib.wsOL[id].onclose();
 				}
 			},
+			voice: function (fromWsid, payload) {
+				if (typeof payload === "string") {
+					try {
+						payload = JSON.parse(payload);
+					} catch {}
+				}
+				if (game.voice) {
+					game.voice.onReceive(fromWsid, payload);
+				}
+			},
 			selfclose: function () {
+				if (game.voice) {
+					game.voice.onRoomLeave();
+				}
 				if (game.online || game.onlineroom) {
 					if ((game.servermode || game.onlinehall) && _status.over) {
 						// later
@@ -12818,6 +12838,11 @@ export class Library {
 				game.roomId = index;
 				lib.node = {};
 				game.switchMode(lib.configOL.mode);
+				ui.create.connecting(true);
+			},
+			createroomfailed: function (reason) {
+				alert(reason || "当前房间数量已达上限，请稍后再试");
+				_status.creatingroom = false;
 				ui.create.connecting(true);
 			},
 			enterroomfailed: function () {
@@ -12869,11 +12894,27 @@ export class Library {
 							"创建房间",
 							ui.window,
 							function () {
+								// 房间数量上限由服务端统一裁决（createroomfailed 会提示具体上限），
+								// 客户端不再做本地硬编码拦截，避免与服务端配置（--max-rooms）不一致
 								if (!_status.creatingroom) {
 									_status.creatingroom = true;
 									ui.click.connectMenu();
 								}
 							}
+						);
+						const isFs = !!(
+							document.fullscreenElement ||
+							document.webkitFullscreenElement ||
+							// @ts-ignore
+							document.mozFullScreenElement ||
+							// @ts-ignore
+							document.msFullscreenElement
+						);
+						ui.fullscreenLobby = ui.create.div(
+							".forceopaque.menubutton.large.connectevents.pointerdiv.server",
+							isFs ? "退出全屏" : "进入全屏",
+							ui.window,
+							ui.click.fullscreen
 						);
 						if (events.length) {
 							ui.connectEventsCount.innerHTML = events.filter(function (evt) {
@@ -13010,6 +13051,7 @@ export class Library {
 							ui.rooms.push(player);
 						}
 					}
+					ui.updateEmptyRooms && ui.updateEmptyRooms();
 					if (!_status.requestReadClipboard && _status.read_clipboard_text) {
 						const read = text => {
 							try {
@@ -13092,6 +13134,8 @@ export class Library {
 				game.finishCards();
 				ui.create.roomInfo();
 				ui.create.chat();
+				ui.create.voice();
+				ui.create.fullscreen();
 				if (game.servermode) {
 					ui.create.connectPlayers(get.modetrans(config, true));
 				} else {
@@ -13273,6 +13317,8 @@ export class Library {
 					game.finishCards();
 					if (!observe) {
 						ui.create.chat();
+						ui.create.voice();
+						ui.create.fullscreen();
 						if (ui.exitroom) {
 							ui.exitroom.remove();
 							delete ui.exitroom;
@@ -13704,6 +13750,10 @@ export class Library {
 				if (ui.connectStartButton) {
 					ui.connectStartButton.delete();
 					delete ui.connectStartButton;
+				}
+				if (ui.connectAddAiButton) {
+					ui.connectAddAiButton.delete();
+					delete ui.connectAddAiButton;
 				}
 				if (ui.connectStartBar) {
 					ui.connectStartBar.delete();

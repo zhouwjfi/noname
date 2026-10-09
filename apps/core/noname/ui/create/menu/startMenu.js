@@ -29,10 +29,10 @@ export const startMenuData = {
 					return;
 				}
 				if (!lib.config["connect_" + mode + "_banned"]) {
-					lib.config["connect_" + mode + "_banned"] = [];
+					lib.config["connect_" + mode + "_banned"] = (lib.config.banned || ["old_re_lidian", "huaxiong", "re_yuanshu", "gongsunzan", "xf_yiji", "std_panfeng", "ganfuren", "std_yuejin"]).slice();
 				}
 				if (!lib.config["connect_" + mode + "_bannedcards"]) {
-					lib.config["connect_" + mode + "_bannedcards"] = [];
+					lib.config["connect_" + mode + "_bannedcards"] = (lib.config.bannedcards || []).slice();
 				}
 			}
 			if (lib.config.all.mode.includes(mode)) {

@@ -270,7 +270,7 @@ export const characterPackMenu = function (connectMenu) {
 				} else {
 					var modex = cacheMenux.pages[0].firstChild.querySelector(".active");
 					if (modex && modex.mode) {
-						listb = lib.config["connect_" + modex.mode + "_banned"];
+						listb = lib.config["connect_" + modex.mode + "_banned"] || [];
 					}
 				}
 				for (var pak in lib.characterSort[mode]) {
@@ -297,7 +297,8 @@ export const characterPackMenu = function (connectMenu) {
 								if (connectMenu) {
 									var modex = cacheMenux.pages[0].firstChild.querySelector(".active");
 									if (modex && modex.mode) {
-										banned = lib.config["connect_" + modex.mode + "_banned"];
+										banned = lib.config["connect_" + modex.mode + "_banned"] || [];
+										lib.config["connect_" + modex.mode + "_banned"] = banned;
 									}
 								} else if (_status.connectMode) {
 									return;
@@ -493,6 +494,15 @@ export const characterPackMenu = function (connectMenu) {
 		var node1 = ui.create.div(".lefttext", "仅保留标准", start.firstChild, function () {
 			lib.config.connect_characters = lib.connectCharacterPack.filter(mode => mode !== "standard");
 			game.saveConfig("connect_characters", lib.config.connect_characters);
+			var modex = cacheMenux.pages[0].firstChild.querySelector(".active");
+			var bannedKey = modex && modex.mode ? "connect_" + modex.mode + "_banned" : "banned";
+			var banned = (lib.config[bannedKey] || []).slice();
+			var non2008 = ["old_re_lidian", "huaxiong", "re_yuanshu", "gongsunzan", "xf_yiji", "std_panfeng", "ganfuren", "std_yuejin"];
+			for (var i = 0; i < non2008.length; i++) {
+				if (!banned.includes(non2008[i])) banned.push(non2008[i]);
+			}
+			lib.config[bannedKey] = banned;
+			game.saveConfig(bannedKey, banned);
 			updateNodes();
 		});
 		var node2 = ui.create.div(".lefttext", "全部开启", start.firstChild, function () {

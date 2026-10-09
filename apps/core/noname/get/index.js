@@ -2189,10 +2189,13 @@ export class Get {
 	}
 	config(item, mode) {
 		mode = mode || lib.config.mode;
-		if (!lib.config.mode_config[mode]) {
-			return;
+		const value = lib.config.mode_config?.[mode]?.[item];
+		if (value !== undefined) {
+			return value;
 		}
-		return lib.config.mode_config[mode][item];
+		// 模式未经开始菜单初始化时（如直连进入/脚本切换模式），mode_config 中可能没有该项，
+		// 回退到模式定义的默认值（lib.mode[mode].config[item].init），杜绝 undefined 导致的运行时异常
+		return lib.mode?.[mode]?.config?.[item]?.init;
 	}
 	coinCoeff(list) {
 		var num = 0;
@@ -6088,7 +6091,7 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 							continue;
 						}
 						if (!lib.config["connect_" + modeorder[i] + "_banned"]) {
-							lib.config["connect_" + modeorder[i] + "_banned"] = [];
+							lib.config["connect_" + modeorder[i] + "_banned"] = (lib.config.banned || ["old_re_lidian", "huaxiong", "re_yuanshu", "gongsunzan", "xf_yiji", "std_panfeng", "ganfuren", "std_yuejin"]).slice();
 						}
 					} else if (modeorder[i] == "connect" || modeorder[i] == "brawl") {
 						continue;

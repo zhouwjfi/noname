@@ -422,11 +422,6 @@ export const menuUpdates = [];
  * @param { boolean } [connectMenu]
  */
 export function menu(connectMenu) {
-	/** 提示重启的计时器 */
-	let menuTimeout = null;
-	if (!connectMenu && !game.syncMenu) {
-		menuTimeout = setTimeout(lib.init.reset, 1000);
-	}
 	/** menu是menux.menu，目前只有赋值没有使用，所以先注释掉 */
 	// let menu;
 
@@ -534,9 +529,6 @@ export function menu(connectMenu) {
 	// 其他
 	ui.create.otherMenu(connectMenu);
 
-	if (menuTimeout) {
-		clearTimeout(menuTimeout);
-		delete window.resetExtension;
-		localStorage.removeItem(lib.configprefix + "disable_extension", true);
-	}
+	delete window.resetExtension;
+	localStorage.removeItem(lib.configprefix + "disable_extension", true);
 }

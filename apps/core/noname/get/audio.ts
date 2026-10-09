@@ -452,6 +452,11 @@ class DieAudio implements AudioBase {
 				this.name = player.name;
 				if (this.isExist(this.name)) {
 					this.info = get.character(this.name);
+				} else if (player.name1 && this.isExist(player.name1)) {
+					// 国战暗置武将等场景：展示名为 unknownN（不在 lib.character 中），
+					// 死亡时武将本已明置，回退到真实武将解析阵亡配音
+					this.name = player.name1;
+					this.info = get.character(this.name);
 				} else {
 					console.error(new ReferenceError(`Cannot find ${this.name} when parsing ${this.type} audio.`));
 					this.info = {};

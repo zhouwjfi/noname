@@ -4496,8 +4496,8 @@ export const Content: Record<string, ContentFuncByAll | ContentFuncsByAll> = {
 		const me = game.connectPlayers[0];
 		me.setIdentity("zhu");
 		me.initOL(get.connectNickname(), lib.config.connect_avatar);
-		me.playerid = "1";
-		game.onlinezhu = "1";
+		me.playerid = game.wsid || "1";
+		game.onlinezhu = me.playerid;
 		_status.waitingForPlayer = true;
 
 		await game.pause();
@@ -4518,6 +4518,10 @@ export const Content: Record<string, ContentFuncByAll | ContentFuncsByAll> = {
 		if (ui.exitroom) {
 			ui.exitroom.remove();
 			delete ui.exitroom;
+		}
+		if (ui.connectAddAiButton) {
+			ui.connectAddAiButton.delete();
+			delete ui.connectAddAiButton;
 		}
 		game.broadcast("gameStart");
 		game.delay(2);

@@ -7,6 +7,10 @@ export interface ServerOptions {
 	 * 否则一律使用 socket 地址，避免客户端伪造请求头。
 	 */
 	trustedProxies?: string[];
+	/**
+	 * 同时允许存在的最大房间数（包括等待中和已开始的游戏房间），默认为 2。
+	 */
+	maxRooms?: number;
 }
 
 export interface ServerInstance {

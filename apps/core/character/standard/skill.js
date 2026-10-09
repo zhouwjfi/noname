@@ -4,7 +4,7 @@ import { lib, game, ui, get, ai, _status } from "noname";
 const skills = {
 	//主公吕布
 	stdqingjiao: {
-		audio: 2,
+		audio: "qingjiao",
 		trigger: {
 			player: "phaseJieshuBegin",
 		},

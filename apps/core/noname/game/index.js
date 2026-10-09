@@ -16,6 +16,7 @@ import { isClass, userAgentLowerCase, GeneratorFunction, AsyncFunction, delay } 
 import { DynamicStyle } from "./dynamic-style/index.js";
 import { GamePromises } from "./promises.js";
 import { Check } from "./check.js";
+import { VoiceManager } from "./voice.js";
 
 import { security } from "@/util/sandbox.js";
 import { save } from "@/util/config.js";
@@ -26,6 +27,10 @@ export class Game {
 	online = false;
 	onlineID = null;
 	onlineKey = null;
+	/**
+	 * @type {VoiceManager}
+	 */
+	voice = new VoiceManager();
 	/**
 	 * @type {Player[]}
 	 */
@@ -1829,12 +1834,17 @@ export class Game {
 			current.nickname = current.ws.nickname;
 			current.setNickname();
 		}
-		game.me.playerid = get.id();
+		game.me.playerid = game.wsid || get.id();
 		game.me.nickname = get.connectNickname();
 		game.me.setNickname();
 		for (let i = 0; i < game.players.length; i++) {
 			if (!game.players[i].playerid) {
 				game.players[i].playerid = get.id();
+			}
+			if (!game.players[i].nickname) {
+				game.players[i].nickname = "电脑玩家";
+				game.players[i].isAi = true;
+				game.players[i].setNickname();
 			}
 			map.push([game.players[i].playerid, game.players[i].nickname]);
 			lib.playerOL[game.players[i].playerid] = game.players[i];
@@ -1955,6 +1965,10 @@ export class Game {
 		const map = [];
 		for (let i = 0; i < game.connectPlayers.length; i++) {
 			const player = game.connectPlayers[i];
+			if (i === 0 && game.wsid && (player.playerid === "1" || !player.playerid)) {
+				player.playerid = game.wsid;
+				if (game.onlinezhu === "1") game.onlinezhu = game.wsid;
+			}
 			if (player.playerid) {
 				if (!game.onlinezhu) {
 					game.onlinezhu = player.playerid;
@@ -2122,7 +2136,11 @@ export class Game {
 	 * @param { (result: boolean) => any } callback
 	 */
 	connect(ip, callback) {
-		ip = "wss://tkser.zhouwj.tech:5443";
+		// 未显式指定服务器地址时，回退到默认联机大厅（可通过 lib.hallURL 覆盖）；
+		// 显式传入的地址（含 ws://、wss:// 直连地址）必须被尊重，否则直连/本地服会被劫持
+		if (!ip || typeof ip !== "string") {
+			ip = lib.hallURL || "wss://tkser.zhouwj.tech:5443";
+		}
 		// 如果已经联机了就不需要再连接了
 		if (game.online) {
 			return;
@@ -2433,6 +2451,8 @@ export class Game {
 		lib.wsOL = {};
 		ui.create.roomInfo();
 		ui.create.chat();
+		ui.create.voice();
+		ui.create.fullscreen();
 		if (game.onlineroom) {
 			void 0;
 		} else {
@@ -7973,6 +7993,33 @@ ${e instanceof Error ? e.stack : String(e)}`);
 						i--;
 					}
 				}
+			} else {
+				// 本地模式：重建牌堆列表。
+				// 联机模式下卡牌包仅装入 lib.cardPackList（lib.card.list 为空），
+				// 且从其它模式切换时残留旧模式的牌堆，两种情况都必须按当前
+				// 模式的已启用卡牌包重建，否则开局即空牌堆、摸牌直接判平局
+				let cardList = [];
+				for (let i in lib.cardPackList) {
+					if (lib.config.cards.includes(i)) {
+						cardList = cardList.concat(lib.cardPackList[i]);
+					}
+				}
+				for (let i = 0; i < cardList.length; i++) {
+					if (cardList[i][2] == "huosha") {
+						cardList[i] = cardList[i].slice(0);
+						cardList[i][2] = "sha";
+						cardList[i][3] = "fire";
+					} else if (cardList[i][2] == "leisha") {
+						cardList[i] = cardList[i].slice(0);
+						cardList[i][2] = "sha";
+						cardList[i][3] = "thunder";
+					}
+					if (!lib.card[cardList[i][2]] || (lib.card[cardList[i][2]] && lib.card[cardList[i][2]].mode && lib.card[cardList[i][2]].mode.includes(lib.config.mode) == false)) {
+						cardList.splice(i, 1);
+						i--;
+					}
+				}
+				lib.card.list = cardList;
 			}
 
 			if (!lib.config.show_playerids || !game.showIdentity) {
@@ -9114,6 +9161,10 @@ ${e instanceof Error ? e.stack : String(e)}`);
 		ui.connectClients.remove();
 		ui.connectClientsCount.remove();
 		ui.createRoomButton.remove();
+		if (ui.fullscreenLobby) {
+			ui.fullscreenLobby.remove();
+			delete ui.fullscreenLobby;
+		}
 		delete ui.connectEvents;
 		delete ui.connectEventsCount;
 		delete ui.connectClients;

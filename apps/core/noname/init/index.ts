@@ -23,10 +23,18 @@ export async function boot() {
 	}
 
 	await import("./polyfill.js");
-	// 设定游戏加载时间，超过时间未加载就提醒
-	const configLoadTime = parseInt(localStorage.getItem(lib.configprefix + "loadtime") || "10000");
-	// 现在不暴露到全局变量里了，直接传给onload
-	const resetGameTimeout = setTimeout(lib.init.reset, configLoadTime);
+	// @ts-ignore
+	window.setBootProgress?.(52, "正在初始化游戏环境...", "设置基础监听器");
+	const isWebEnv = typeof lib.device === "undefined" && !window.require;
+	localStorage.removeItem(lib.configprefix + "loadtime");
+	let resetGameTimeout: any = void 0;
+	if (!isWebEnv) {
+		const configLoadTime = parseInt(localStorage.getItem(lib.configprefix + "loadtime") || "10000");
+		resetGameTimeout = setTimeout(lib.init.reset, configLoadTime);
+		window.resetGameTimeout = resetGameTimeout;
+	} else {
+		delete window.resetGameTimeout;
+	}
 
 	setBackground();
 
@@ -40,6 +48,8 @@ export async function boot() {
 	setOnError({ lib, game, get, _status });
 
 	await loadConfig();
+	// @ts-ignore
+	window.setBootProgress?.(56, "正在载入游戏配置...", "加载基础配置与规则");
 	get.assignRandomPlayerIdentity();
 
 	// 兼容原有鏖战布尔设置，保持原规则并正确显示新的选择菜单。
@@ -72,8 +82,16 @@ export async function boot() {
 	CacheContext.setProxy({ lib, game, get });
 
 	const ua = userAgentLowerCase;
-	if ("ontouchstart" in document) {
-		if (!config.get("totouched")) {
+	const isMobile = /mobile|android|iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /macintosh/i.test(navigator.userAgent));
+	if ("ontouchstart" in document || isMobile) {
+		if (isMobile) {
+			if (!config.get("touchscreen")) {
+				game.saveConfig("touchscreen", true);
+			}
+			if (ua.indexOf("ipad") == -1 && !config.get("phonelayout")) {
+				game.saveConfig("phonelayout", true);
+			}
+		} else if (!config.get("totouched")) {
 			game.saveConfig("totouched", true);
 			if (typeof lib.device != "undefined") {
 				game.saveConfig("low_performance", true);
@@ -114,7 +132,11 @@ export async function boot() {
 
 	await loadCss();
 	initSheet();
+	// @ts-ignore
+	window.setBootProgress?.(62, "正在加载界面样式...", "布局与主题样式");
 
+	// @ts-ignore
+	window.setBootProgress?.(66, "正在载入扩展包列表...", "解析武将与卡牌列表");
 	await lib.init.promises.js("game", "package");
 	const pack = window.noname_package;
 	delete window.noname_package;
@@ -359,7 +381,23 @@ export async function boot() {
 	toLoad.push(lib.init.promises.js(`${lib.assetURL}character`, "replace"));
 	toLoad.push(lib.init.promises.js(`${lib.assetURL}character`, "perfectPairs"));
 
-	await Promise.allSettled(toLoad);
+	let completedPacks = 0;
+	const totalPacks = toLoad.length;
+	const wrappedToLoad = toLoad.map(p =>
+		p.then(res => {
+			completedPacks++;
+			const pct = 70 + Math.round((completedPacks / totalPacks) * 24);
+			// @ts-ignore
+			window.setBootProgress?.(
+				pct,
+				`正在下载武将与卡牌资源 (${completedPacks}/${totalPacks})...`,
+				"解析卡牌与武将扩展包"
+			);
+			return res;
+		})
+	);
+
+	await Promise.allSettled(wrappedToLoad);
 
 	if (_status.importing) {
 		let promises = [];
@@ -370,16 +408,16 @@ export async function boot() {
 		delete _status.importing;
 	}
 
-	window.resetGameTimeout = resetGameTimeout;
+	if (resetGameTimeout) {
+		window.resetGameTimeout = resetGameTimeout;
+	}
 	const libOnload = lib.onload;
 	delete lib.onload;
 	libOnload.forEach(fn => fn());
 
 	ui.updated();
 	game.documentZoom = game.deviceZoom;
-	if (game.documentZoom !== 1) {
-		ui.updatez();
-	}
+	ui.updatez();
 
 	await createBackground();
 
@@ -490,6 +528,8 @@ export async function boot() {
 	if (!lib.imported.mode?.[lib.config.mode]) {
 		window.inSplash = true;
 		clearTimeout(window.resetGameTimeout);
+		// @ts-ignore
+		window.finishBootProgress?.();
 
 		if (typeof lib.config.splash_style == "undefined") {
 			game.saveConfig("splash_style", lib.onloadSplashes[0].id);
@@ -510,7 +550,9 @@ export async function boot() {
 		if (!splashInRemoing) {
 			node.remove();
 		}
-		window.resetGameTimeout = setTimeout(lib.init.reset, 10000);
+		if (!isWebEnv) {
+			window.resetGameTimeout = setTimeout(lib.init.reset, 10000);
+		}
 		delete window.inSplash;
 		game.saveConfig("mode", result);
 		await importMode(result);
@@ -543,6 +585,44 @@ export async function boot() {
 		lib.config.connect_characters_init_v2 = true;
 		game.saveConfig("connect_characters", lib.config.connect_characters);
 		game.saveConfig("connect_characters_init_v2", true);
+	}
+
+	// 默认只保留2008标准版武将（禁用2013、2019、2023补充武将）
+	if (!lib.config.standard_2008_only_init) {
+		lib.config.standard_2008_only_init = true;
+		game.saveConfig("standard_2008_only_init", true);
+		const non2008Standard = ["old_re_lidian", "huaxiong", "re_yuanshu", "gongsunzan", "xf_yiji", "std_panfeng", "ganfuren", "std_yuejin"];
+		const banKeys = [
+			"banned",
+			"connect_identity_banned",
+			"connect_doudizhu_banned",
+			"connect_versus_banned",
+			"connect_single_banned",
+			"identity_banned",
+			"doudizhu_banned",
+			"versus_banned",
+			"single_banned",
+		];
+		for (const key of banKeys) {
+			const current = Array.isArray(lib.config[key]) ? lib.config[key].slice() : [];
+			for (const char of non2008Standard) {
+				if (!current.includes(char)) {
+					current.push(char);
+				}
+			}
+			lib.config[key] = current;
+			game.saveConfig(key, current);
+		}
+	}
+
+	// 彻底清空并禁用所有扩展与额外玩法（极致纯净版）
+	if (!lib.config.clean_extensions_v1) {
+		lib.config.clean_extensions_v1 = true;
+		game.saveConfig("clean_extensions_v1", true);
+		lib.config.extensions = [];
+		game.saveConfig("extensions", []);
+		lib.config.plays = [];
+		game.saveConfig("plays", []);
 	}
 
 	lib.config.new_tutorial = true;
@@ -617,6 +697,8 @@ export async function boot() {
 		delete lib.init.startBefore;
 	}
 
+	// @ts-ignore
+	window.setBootProgress?.(96, "正在构建游戏界面...", "创建游戏舞台");
 	ui.create.arena();
 	game.createEvent("game", false).setContent(lib.init.start);
 	if (lib.mode[lib.config.mode] && lib.mode[lib.config.mode].fromextension) {
@@ -632,6 +714,8 @@ export async function boot() {
 	}
 
 	game.loop();
+	// @ts-ignore
+	window.setBootProgress?.(100, "加载完成！", "正在进入游戏...");
 }
 
 async function getExtensionList() {
@@ -648,14 +732,17 @@ async function getExtensionList() {
 	})();
 	const searchParamsImportExtension = new URLSearchParams(location.search).get("importExtensionName");
 
-	window.resetExtension = () => {
-		for (let ext of config.get("extensions")) {
-			game.promises.saveConfig(`extension_${ext}_enable`, false);
-		}
-		localStorage.setItem(lib.configprefix + "disable_extension", String(true));
-	};
-
-	const extensions: string[] = config.get("extensions");
+	const extensions: string[] = config.get("extensions") || [];
+	if (extensions.length > 0) {
+		window.resetExtension = () => {
+			for (let ext of extensions) {
+				game.promises.saveConfig(`extension_${ext}_enable`, false);
+			}
+			localStorage.setItem(lib.configprefix + "disable_extension", String(true));
+		};
+	} else {
+		delete window.resetExtension;
+	}
 	const toLoad: string[] = [];
 	toLoad.addArray(config.get("plays").filter(i => config.get("all").plays.includes(i)));
 	toLoad.addArray(extensions);
@@ -894,6 +981,39 @@ async function loadConfig() {
 		}
 	}
 
+	const connectCards = config.get("connect_cards");
+	if (Array.isArray(connectCards) && !connectCards.includes("jiubian")) {
+		connectCards.push("jiubian");
+		game.saveConfig("connect_cards", connectCards);
+	}
+
+	const non2008Standard = ["old_re_lidian", "huaxiong", "re_yuanshu", "gongsunzan", "xf_yiji", "std_panfeng", "ganfuren", "std_yuejin"];
+	if (!config.get("standard_2008_only_init")) {
+		config.set("standard_2008_only_init", true);
+		game.saveConfig("standard_2008_only_init", true);
+		const banKeys = [
+			"banned",
+			"connect_identity_banned",
+			"connect_doudizhu_banned",
+			"connect_versus_banned",
+			"connect_single_banned",
+			"identity_banned",
+			"doudizhu_banned",
+			"versus_banned",
+			"single_banned",
+		];
+		for (const key of banKeys) {
+			const current = Array.isArray(config.get(key)) ? config.get(key).slice() : [];
+			for (const char of non2008Standard) {
+				if (!current.includes(char)) {
+					current.push(char);
+				}
+			}
+			config.set(key, current);
+			game.saveConfig(key, current);
+		}
+	}
+
 	config.get("all").characters = [];
 	config.get("all").cards = [];
 	config.get("all").plays = [];
@@ -1062,7 +1182,10 @@ async function createBackground() {
 	document.documentElement.style.backgroundSize = "";
 	document.documentElement.style.backgroundPosition = "";
 	document.body.insertBefore(ui.background, document.body.firstChild);
-	document.body.onresize = ui.updatexr;
+	// 视口变化统一入口：window resize 与 visualViewport resize（软键盘/通知栏等系统遮挡）
+	// 均交由 ui.updatexr 内部的移动端视口稳定器分类，临时遮挡静默忽略，真实变化防抖重排
+	window.addEventListener("resize", ui.updatexr, { passive: true });
+	window.visualViewport?.addEventListener("resize", ui.updatexr, { passive: true });
 
 	if (!lib.config.image_background) {
 		return;

@@ -6,9 +6,48 @@
 	<meta name="format-detection" content="telephone=no" />
 	<!-- 手机端网页不显示地址栏 -->
 	<meta name="mobile-web-app-capable" content="yes" />
-	<!-- 禁止缩放 手机端全屏 -->
-	<meta name="viewport" content="user-scalable=no, viewport-fit=cover" />
-	<title>无名杀</title>
+	<!-- 禁止缩放 手机端全屏 并防止通知栏/键盘等overlay引起视口重排 -->
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content" />
+	<!-- PWA Manifest & Meta Tags -->
+	<link rel="manifest" href="./manifest.webmanifest" />
+	<meta name="theme-color" content="#1a1412" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+	<meta name="apple-mobile-web-app-title" content="三国杀" />
+	<link rel="apple-touch-icon" href="./image/pwa/apple-touch-icon.png" />
+	<title>三国杀</title>
+
+	<style>
+		html {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			overflow: hidden;
+			overscroll-behavior: none;
+			overscroll-behavior-y: none;
+			overscroll-behavior-x: none;
+			-webkit-overflow-scrolling: auto;
+		}
+		body {
+			position: fixed;
+			top: 0;
+			left: 0;
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			overscroll-behavior: none;
+			overscroll-behavior-y: none;
+			overscroll-behavior-x: none;
+			-webkit-overflow-scrolling: auto;
+		}
+		#window {
+			overscroll-behavior: none;
+			overscroll-behavior-y: none;
+		}
+	</style>
+
 	<script>
 		"use strict";
 		(() => {
@@ -107,5 +146,288 @@
 			};
 		})();
 	</script>
+	<script>
+		if ("serviceWorker" in navigator) {
+			window.addEventListener("load", () => {
+				navigator.serviceWorker.register("./sw.js").catch(e => console.warn("PWA SW registration failed:", e));
+			});
+		}
+	</script>
+	<style>
+		#boot-loader,
+		#boot-loader * {
+			box-sizing: border-box !important;
+			-webkit-user-select: none !important;
+			user-select: none !important;
+		}
+		#boot-loader {
+			position: fixed !important;
+			top: 0 !important;
+			left: 0 !important;
+			right: 0 !important;
+			bottom: 0 !important;
+			width: 100vw !important;
+			height: 100vh !important;
+			z-index: 2147483647 !important;
+			background-color: #141110 !important;
+			background-image: radial-gradient(circle at 50% 45%, #291e18 0%, #130f0e 75%, #0b0908 100%) !important;
+			display: flex !important;
+			flex-direction: column !important;
+			align-items: center !important;
+			justify-content: center !important;
+			padding: 16px !important;
+			margin: 0 !important;
+			transform: none !important;
+			transition: opacity 0.4s ease-out !important;
+			pointer-events: auto !important;
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+		}
+		#boot-loader div {
+			position: static !important;
+			display: block !important;
+			transition: none !important;
+			transform: none !important;
+			left: auto !important;
+			top: auto !important;
+			right: auto !important;
+			bottom: auto !important;
+		}
+		#boot-loader .boot-card {
+			position: relative !important;
+			display: flex !important;
+			flex-direction: column !important;
+			align-items: center !important;
+			justify-content: center !important;
+			width: 88vw !important;
+			max-width: 420px !important;
+			background: rgba(28, 22, 19, 0.95) !important;
+			backdrop-filter: blur(10px) !important;
+			-webkit-backdrop-filter: blur(10px) !important;
+			border: 1px solid rgba(212, 168, 92, 0.4) !important;
+			border-radius: 16px !important;
+			box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+			padding: 24px 20px 18px !important;
+			margin: 0 auto !important;
+			text-align: center !important;
+		}
+		#boot-loader .boot-title {
+			position: relative !important;
+			display: block !important;
+			width: 100% !important;
+			font-family: 'STKaiti', 'KaiTi', '楷体', 'Source Han Serif SC', serif !important;
+			font-size: 32px !important;
+			font-weight: bold !important;
+			letter-spacing: 6px !important;
+			margin: 0 0 4px 6px !important;
+			color: #fae5b8 !important;
+			text-shadow: 0 2px 10px rgba(250, 229, 184, 0.4), 0 0 20px rgba(230, 156, 36, 0.25) !important;
+			line-height: 1.2 !important;
+		}
+		#boot-loader .boot-subtitle {
+			position: relative !important;
+			display: block !important;
+			width: 100% !important;
+			font-size: 13px !important;
+			color: #a89478 !important;
+			letter-spacing: 2px !important;
+			margin: 0 0 18px 0 !important;
+			line-height: 1.4 !important;
+		}
+		#boot-loader .boot-progress-track {
+			position: relative !important;
+			display: block !important;
+			width: 100% !important;
+			height: 10px !important;
+			background: rgba(10, 8, 7, 0.9) !important;
+			border: 1px solid rgba(190, 150, 80, 0.4) !important;
+			border-radius: 6px !important;
+			padding: 1px !important;
+			overflow: hidden !important;
+			margin: 0 0 10px 0 !important;
+			box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6) !important;
+		}
+		#boot-loader .boot-progress-fill {
+			position: absolute !important;
+			top: 0 !important;
+			left: 0 !important;
+			bottom: 0 !important;
+			height: 100% !important;
+			background: linear-gradient(90deg, #b86214 0%, #e69c24 50%, #f7cb59 100%) !important;
+			border-radius: 4px !important;
+			box-shadow: 0 0 10px rgba(247, 203, 89, 0.6) !important;
+			transition: width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+		}
+		#boot-loader .boot-progress-info {
+			position: relative !important;
+			display: flex !important;
+			flex-direction: row !important;
+			justify-content: space-between !important;
+			align-items: center !important;
+			width: 100% !important;
+			margin: 0 0 12px 0 !important;
+			font-size: 12px !important;
+		}
+		#boot-loader .boot-status-text {
+			position: relative !important;
+			display: inline-block !important;
+			color: #d1c1a5 !important;
+			font-weight: 500 !important;
+			white-space: nowrap !important;
+			overflow: hidden !important;
+			text-overflow: ellipsis !important;
+			max-width: 80% !important;
+			text-align: left !important;
+			line-height: 1.4 !important;
+		}
+		#boot-loader .boot-status-pct {
+			position: relative !important;
+			display: inline-block !important;
+			color: #ffd88a !important;
+			font-weight: bold !important;
+			font-size: 14px !important;
+			font-family: monospace, sans-serif !important;
+			min-width: 42px !important;
+			text-align: right !important;
+			line-height: 1.4 !important;
+		}
+		#boot-loader .boot-status-detail {
+			position: relative !important;
+			display: block !important;
+			width: 100% !important;
+			font-size: 11px !important;
+			color: #7d6e5d !important;
+			line-height: 1.4 !important;
+			text-align: center !important;
+			border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+			padding-top: 8px !important;
+			margin: 0 !important;
+		}
+	</style>
+	<script>
+		window.__bootProgressPct = 2;
+		window.__bootProgressStatus = "正在连接服务器...";
+		window.__bootProgressDetail = "初次载入将自动缓存资源，后续进入将秒开";
+
+		window.setBootProgress = function (pct, statusText, detailText) {
+			if (typeof pct === "number") {
+				if (pct > (window.__bootProgressPct || 0)) {
+					window.__bootProgressPct = Math.min(100, Math.max(0, Math.round(pct)));
+				}
+			}
+			if (statusText) window.__bootProgressStatus = statusText;
+			if (detailText) window.__bootProgressDetail = detailText;
+
+			var fill = document.getElementById("boot-progress-fill");
+			var pctElem = document.getElementById("boot-status-pct");
+			var textElem = document.getElementById("boot-status-text");
+			var detailElem = document.getElementById("boot-status-detail");
+
+			if (fill) fill.style.width = window.__bootProgressPct + "%";
+			if (pctElem) pctElem.textContent = window.__bootProgressPct + "%";
+			if (textElem) textElem.textContent = window.__bootProgressStatus;
+			if (detailElem) detailElem.textContent = window.__bootProgressDetail;
+
+			if (window.__bootProgressPct >= 100) {
+				window.finishBootProgress && window.finishBootProgress();
+			}
+		};
+
+		window.finishBootProgress = function () {
+			var loader = document.getElementById("boot-loader");
+			if (!loader || loader._finished) return;
+			loader._finished = true;
+			if (window.__bootPollInterval) clearInterval(window.__bootPollInterval);
+			if (window.__bootResourceObserver) {
+				try { window.__bootResourceObserver.disconnect(); } catch (e) {}
+			}
+			if (document.body) {
+				document.body.style.backgroundColor = "transparent";
+			}
+			setTimeout(function () {
+				loader.style.transition = "opacity 0.4s ease-out";
+				loader.style.opacity = "0";
+				loader.style.pointerEvents = "none";
+				setTimeout(function () {
+					if (loader.parentNode) loader.parentNode.removeChild(loader);
+				}, 450);
+			}, 250);
+		};
+
+		(function () {
+			var totalExpected = 250;
+			var loaded = 0;
+			var hasFinishedModules = false;
+
+			function checkProgress() {
+				if (hasFinishedModules || (window.__bootProgressPct && window.__bootProgressPct >= 48)) return;
+				var current = 0;
+				if (window.performance && window.performance.getEntriesByType) {
+					var list = window.performance.getEntriesByType("resource");
+					for (var i = 0; i < list.length; i++) {
+						var name = list[i].name || "";
+						if (list[i].initiatorType === "script" || name.indexOf(".js") !== -1 || name.indexOf(".css") !== -1) {
+							current++;
+						}
+					}
+				}
+				if (current > loaded) {
+					loaded = current;
+					var pct = Math.min(48, Math.max(3, Math.round((loaded / totalExpected) * 48)));
+					window.setBootProgress(
+						pct,
+						"正在下载核心组件 (" + Math.min(loaded, totalExpected) + "/" + totalExpected + ")...",
+						"初次载入将自动缓存资源，后续进入将秒开"
+					);
+				}
+			}
+
+			if (window.PerformanceObserver) {
+				try {
+					var observer = new PerformanceObserver(function () {
+						checkProgress();
+					});
+					observer.observe({ entryTypes: ["resource"] });
+					window.__bootResourceObserver = observer;
+				} catch (e) {}
+			}
+
+			window.__bootPollInterval = setInterval(checkProgress, 120);
+
+			window.__markModulesLoaded = function () {
+				hasFinishedModules = true;
+				if (window.__bootPollInterval) clearInterval(window.__bootPollInterval);
+				if (window.__bootResourceObserver) {
+					try { window.__bootResourceObserver.disconnect(); } catch (e) {}
+				}
+			};
+
+			function attachLoaderToRoot() {
+				var loader = document.getElementById("boot-loader");
+				if (loader && loader.parentElement !== document.documentElement) {
+					document.documentElement.appendChild(loader);
+				}
+			}
+			document.addEventListener("DOMContentLoaded", function () {
+				attachLoaderToRoot();
+				window.setBootProgress(window.__bootProgressPct, window.__bootProgressStatus, window.__bootProgressDetail);
+			});
+		})();
+	</script>
 	<script type="module" src="./noname/entry.ts"></script>
 </head>
+<body style="margin:0;padding:0;overflow:hidden;user-select:none;-webkit-user-select:none;">
+	<div id="boot-loader">
+		<div class="boot-card">
+			<div class="boot-title">三国杀</div>
+			<div class="boot-subtitle">谋定天下 · 战火重燃</div>
+			<div class="boot-progress-track">
+				<div id="boot-progress-fill" class="boot-progress-fill" style="width: 2%;"></div>
+			</div>
+			<div class="boot-progress-info">
+				<span id="boot-status-text" class="boot-status-text">正在连接服务器...</span>
+				<span id="boot-status-pct" class="boot-status-pct">2%</span>
+			</div>
+			<div id="boot-status-detail" class="boot-status-detail">正在下载核心引擎组件，请稍候...</div>
+		</div>
+	</div>
+</body>

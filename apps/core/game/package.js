@@ -48,11 +48,7 @@ window.noname_package = {
 		huodong: "活动卡牌",
 		xianxia: "线下卡牌",
 	},
-	play: {
-		boss: "诸神降临",
-		cardpile: "牌堆补充",
-		coin: "富甲天下",
-	},
+	play: {},
 	mode: {
 		identity: "身份",
 		guozhan: "国战",

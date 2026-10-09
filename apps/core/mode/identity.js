@@ -1048,7 +1048,7 @@ export default {
 						list.push([current, [str, [list2, "character"]], true]);
 					}
 					game.me.chooseButtonOL(list, (player, result) => {
-						if (game.online || player === game.me) {
+						if (game.online || player === game.me || !player.isOnline()) {
 							player.init(result.links[0]);
 							if (!player.isInitFilter("noZhuHp")) {
 								player.hp++;
@@ -1096,7 +1096,7 @@ export default {
 						list.push([current, [str, [list2, "character"]], true]);
 					}
 					game.me.chooseButtonOL(list, (player, result) => {
-						if (game.online || player === game.me) {
+						if (game.online || player === game.me || !player.isOnline()) {
 							player.init(result.links[0]);
 						}
 					});
@@ -2703,7 +2703,7 @@ export default {
 						list.push([currentPlayer, [str, [event.list.randomRemove(Math.min(num, num2)), "characterx"]], selectButton, true]);
 					}
 					game.me.chooseButtonOL(list, (player, result) => {
-						if (game.online || player === game.me) {
+						if (game.online || player === game.me || !player.isOnline()) {
 							player.init(result.links[0], result.links[1]);
 						}
 					});

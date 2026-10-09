@@ -8,6 +8,42 @@ import { otherMenu } from "./menu/pages/otherMenu.js";
 import { startMenu } from "./menu/pages/startMenu.js";
 import { Pagination } from "@/util/pagination.js";
 
+export function updateFullscreenState() {
+	const doc = document;
+	const isFs = !!(
+		doc.fullscreenElement ||
+		doc.webkitFullscreenElement ||
+		// @ts-ignore
+		doc.mozFullScreenElement ||
+		// @ts-ignore
+		doc.msFullscreenElement
+	);
+	if (isFs) {
+		window._nonameUserWantsFullscreen = true;
+	}
+	const text = isFs ? "退出全屏" : "进入全屏";
+	if (ui.fullscreen) {
+		ui.fullscreen.innerHTML = text;
+	}
+	if (ui.fullscreenLobby) {
+		ui.fullscreenLobby.innerHTML = text;
+	}
+	// 全屏属于用户主动意图导致的显示模式切换：置位标记并请求重排，
+	// 让视口稳定器接受新的可用尺寸（区别于通知栏等被动临时遮挡）
+	ui._viewportModeChanged = true;
+	ui.updatexr();
+}
+
+if (typeof document !== "undefined") {
+	document.addEventListener("fullscreenchange", updateFullscreenState);
+	document.addEventListener("webkitfullscreenchange", updateFullscreenState);
+	// @ts-ignore
+	document.addEventListener("mozfullscreenchange", updateFullscreenState);
+	// @ts-ignore
+	document.addEventListener("MSFullscreenChange", updateFullscreenState);
+}
+
+
 export class Create {
 	/**
 	 * @type {(video: Videos, before: boolean) => void}
@@ -541,6 +577,7 @@ export class Create {
 			player.initRoom(list[i]);
 			ui.rooms.push(player);
 		}
+		ui.updateEmptyRooms();
 	}
 	rarity(button) {
 		var rarity = game.getRarity(button.link);
@@ -787,6 +824,106 @@ export class Create {
 		var chat = ui.create.system("聊天", null, true);
 		ui.chatButton = chat;
 		lib.setPopped(chat, ui.click.chat, 220);
+	}
+	voice() {
+		if (ui.voiceDock && ui.voiceDock.parentNode && ui.micButton && ui.speakerButton) {
+			return;
+		}
+		if (!ui.voiceDock || !ui.voiceDock.parentNode) {
+			ui.voiceDock = ui.create.div("#voice-dock", ui.window);
+		}
+		if (!ui.micButton || !ui.micButton.parentNode) {
+			ui.micButton = ui.create.div(".voice-dock-btn.voice-btn-mic", ui.voiceDock);
+			ui.micButton.listen(ui.click.mic);
+		}
+		if (!ui.speakerButton || !ui.speakerButton.parentNode) {
+			ui.speakerButton = ui.create.div(".voice-dock-btn.voice-btn-speaker", ui.voiceDock);
+			ui.speakerButton.listen(ui.click.speaker);
+		}
+		if (!ui.voiceDock._dragInited) {
+			ui.voiceDock._dragInited = true;
+			let isDragging = false;
+			let startX = 0, startY = 0;
+			let origX = 0, origY = 0;
+			let hasMoved = false;
+
+			const onStart = (e) => {
+				const p = e.touches ? e.touches[0] : e;
+				isDragging = true;
+				hasMoved = false;
+				startX = p.clientX;
+				startY = p.clientY;
+				const rect = ui.voiceDock.getBoundingClientRect();
+				origX = rect.left;
+				origY = rect.top;
+			};
+
+			const onMove = (e) => {
+				if (!isDragging) return;
+				const p = e.touches ? e.touches[0] : e;
+				const dx = p.clientX - startX;
+				const dy = p.clientY - startY;
+				if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+					hasMoved = true;
+					ui.voiceDock._dragged = true;
+					ui.voiceDock.classList.add("dragging");
+					ui.voiceDock.style.right = "auto";
+					ui.voiceDock.style.bottom = "auto";
+					const maxX = Math.max(10, (window.innerWidth || 800) - (ui.voiceDock.offsetWidth || 90) - 10);
+					const maxY = Math.max(10, (window.innerHeight || 600) - (ui.voiceDock.offsetHeight || 50) - 10);
+					ui.voiceDock.style.left = `${Math.min(maxX, Math.max(10, origX + dx))}px`;
+					ui.voiceDock.style.top = `${Math.min(maxY, Math.max(10, origY + dy))}px`;
+				}
+			};
+
+			const onEnd = () => {
+				if (isDragging) {
+					ui.voiceDock.classList.remove("dragging");
+					if (hasMoved) {
+						setTimeout(() => {
+							if (ui.voiceDock) ui.voiceDock._dragged = false;
+						}, 250);
+					}
+				}
+				isDragging = false;
+			};
+
+			// 挂件销毁时同步解绑 window 级监听，杜绝语音会话反复开关造成的监听器泄漏
+			// （voiceDock.remove() 后重建的新节点 _dragInited 为空，会重复注册 window 监听）
+			const detach = () => {
+				window.removeEventListener("touchmove", onMove);
+				window.removeEventListener("touchend", onEnd);
+				window.removeEventListener("mousemove", onMove);
+				window.removeEventListener("mouseup", onEnd);
+				window.removeEventListener("noname-voicedock-destroy", detach);
+			};
+			window.addEventListener("noname-voicedock-destroy", detach, { once: true });
+
+			ui.voiceDock.addEventListener("touchstart", onStart, { passive: true });
+			window.addEventListener("touchmove", onMove, { passive: true });
+			window.addEventListener("touchend", onEnd, { passive: true });
+
+			ui.voiceDock.addEventListener("mousedown", onStart);
+			window.addEventListener("mousemove", onMove);
+			window.addEventListener("mouseup", onEnd);
+		}
+		if (game.voice) {
+			game.voice.updateButtons();
+		}
+	}
+	fullscreen() {
+		if (ui.fullscreen && ui.fullscreen.parentNode) {
+			return;
+		}
+		const isFs = !!(
+			document.fullscreenElement ||
+			document.webkitFullscreenElement ||
+			// @ts-ignore
+			document.mozFullScreenElement ||
+			// @ts-ignore
+			document.msFullscreenElement
+		);
+		ui.fullscreen = ui.create.system(isFs ? "退出全屏" : "进入全屏", ui.click.fullscreen, true);
 	}
 	exit() {
 		if (!ui.exit) {
@@ -2627,6 +2764,7 @@ export class Create {
 
 		ui.replay = ui.create.system("重来", game.reload, true);
 		ui.replay.id = "restartbutton";
+		ui.create.fullscreen();
 		ui.config2 = ui.create.system("选项", ui.click.config);
 		ui.pause = ui.create.system("暂停", ui.click.pause);
 		ui.pause.id = "pausebutton";
@@ -3692,15 +3830,24 @@ export class Create {
 					game.reload();
 				}
 			} else {
-				var num = 0;
+				var emptySeats = [];
 				for (var i of game.connectPlayers) {
-					if (!i.nickname && !i.classList.contains("unselectable2")) {
-						num++;
+					if (!i.playerid && !i.classList.contains("unselectable2")) {
+						emptySeats.push(i);
 					}
 				}
-				if (num >= lib.configOL.number - 1) {
-					alert("至少要有两名玩家才能开始游戏！");
-					return;
+				if (emptySeats.length > 0) {
+					var aiAvatars = ["caocao", "liubei", "sunquan", "zhugeliang", "zhouyu", "simayi", "guanyu", "zhangfei", "zhaoyun"];
+					if (confirm(`当前房间还有 ${emptySeats.length} 个空位，是否由电脑玩家补齐并开始游戏？`)) {
+						for (var seat of emptySeats) {
+							seat.playerid = "ai_" + get.id();
+							seat.isAi = true;
+							seat.initOL("电脑玩家", aiAvatars.randomGet() || "caocao");
+						}
+						game.updateWaiting();
+					} else {
+						return;
+					}
 				}
 				game.resume();
 			}

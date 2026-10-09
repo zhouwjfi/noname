@@ -571,6 +571,9 @@ export class Click {
 		}
 	}
 	exit() {
+		if (game.voice) {
+			game.voice.onRoomLeave();
+		}
 		if (game.servermode && lib.config.reconnect_info && _status.over) {
 			if (!_status.roomtimeout) {
 				lib.config.reconnect_info[2] = game.roomId;
@@ -1010,6 +1013,66 @@ export class Click {
 		}
 		return uiintro;
 	}
+	mic(e) {
+		if (e && e.stopPropagation) e.stopPropagation();
+		if (ui.voiceDock && ui.voiceDock._dragged) {
+			return;
+		}
+		if (game.voice) {
+			game.voice.toggleMute();
+		}
+	}
+	speaker(e) {
+		if (e && e.stopPropagation) e.stopPropagation();
+		if (ui.voiceDock && ui.voiceDock._dragged) {
+			return;
+		}
+		if (game.voice) {
+			game.voice.toggleDeafen();
+		}
+	}
+	fullscreen(e) {
+		if (e && e.stopPropagation) e.stopPropagation();
+		const doc = document;
+		const docEl = document.documentElement;
+		const isFs = !!(
+			doc.fullscreenElement ||
+			doc.webkitFullscreenElement ||
+			// @ts-ignore
+			doc.mozFullScreenElement ||
+			// @ts-ignore
+			doc.msFullscreenElement
+		);
+		if (isFs) {
+			window._nonameUserWantsFullscreen = false;
+			const exit =
+				doc.exitFullscreen ||
+				doc.webkitExitFullscreen ||
+				// @ts-ignore
+				doc.mozCancelFullScreen ||
+				// @ts-ignore
+				doc.msExitFullscreen;
+			if (exit) {
+				exit.call(doc).catch(() => {});
+			}
+		} else {
+			window._nonameUserWantsFullscreen = true;
+			const enter =
+				docEl.requestFullscreen ||
+				docEl.webkitRequestFullscreen ||
+				// @ts-ignore
+				docEl.mozRequestFullScreen ||
+				// @ts-ignore
+				docEl.msRequestFullscreen;
+			if (enter) {
+				enter.call(docEl).catch(err => {
+					console.warn("Fullscreen request failed:", err);
+				});
+			} else {
+				alert("当前浏览器环境不支持全屏切换。如果您在移动端，可点击浏览器菜单中的“添加到主屏幕”安装为独立应用以全屏运行。");
+			}
+		}
+	}
 	chat() {
 		ui.system1.classList.add("shown");
 		ui.system2.classList.add("shown");
@@ -1247,7 +1310,8 @@ export class Click {
 		for (var i = 0; i < 8; i++) {
 			var span = document.createElement("span");
 			span.link = i + 1;
-			span.addEventListener(lib.config.touchscreen ? "touchend" : "click", ui.click.volumn_background);
+			span.addEventListener("click", ui.click.volumn_background);
+			span.addEventListener("touchend", ui.click.volumn_background);
 			if (i < lib.config.volumn_background) {
 				span.innerHTML = "●";
 			} else {
@@ -1262,7 +1326,8 @@ export class Click {
 		for (var i = 0; i < 8; i++) {
 			var span = document.createElement("span");
 			span.link = i + 1;
-			span.addEventListener(lib.config.touchscreen ? "touchend" : "click", ui.click.volumn_audio);
+			span.addEventListener("click", ui.click.volumn_audio);
+			span.addEventListener("touchend", ui.click.volumn_audio);
 			if (i < lib.config.volumn_audio) {
 				span.innerHTML = "●";
 			} else {
@@ -1277,6 +1342,11 @@ export class Click {
 		if (_status.dragged) {
 			return;
 		}
+		var now = Date.now();
+		if (this._lastClick && now - this._lastClick < 250) {
+			return;
+		}
+		this._lastClick = now;
 		var volume = this.link;
 		if (volume === 1 && lib.config.volumn_background === 1) {
 			volume = 0;
@@ -1290,12 +1360,22 @@ export class Click {
 				this.parentNode.childNodes[i].innerHTML = "○";
 			}
 		}
-		e.stopPropagation();
+		if (e) {
+			e.stopPropagation();
+			if (e.cancelable && e.type === "touchend") {
+				e.preventDefault();
+			}
+		}
 	}
 	volumn_audio(e) {
 		if (_status.dragged) {
 			return;
 		}
+		var now = Date.now();
+		if (this._lastClick && now - this._lastClick < 250) {
+			return;
+		}
+		this._lastClick = now;
 		var volume = this.link;
 		if (volume === 1 && lib.config.volumn_audio === 1) {
 			volume = 0;
@@ -1308,41 +1388,73 @@ export class Click {
 				this.parentNode.childNodes[i].innerHTML = "○";
 			}
 		}
-		e.stopPropagation();
+		if (e) {
+			e.stopPropagation();
+			if (e.cancelable && e.type === "touchend") {
+				e.preventDefault();
+			}
+		}
 	}
-	hoverpopped() {
-		if (this._uiintro) {
+	hoverpopped(e) {
+		var node = this;
+		if (node._uiintro) {
+			if (!document.body.contains(node._uiintro)) {
+				delete node._uiintro;
+			} else {
+				// Click/tap again toggles close
+				if (!e || e.type !== "mouseenter") {
+					node._uiintro.delete();
+					delete node._uiintro;
+					if (ui.currentpopped === node) {
+						delete ui.currentpopped;
+					}
+					if (node._poplayer) {
+						node._poplayer.remove();
+						delete node._poplayer;
+					}
+					if (node._paused2) {
+						game.resume2();
+					}
+				}
+				return;
+			}
+		}
+		if (!node._poppedfunc) {
 			return;
 		}
-		if (!this._poppedfunc) {
-			return;
-		}
-		ui.click.touchpop(this.forceclick);
-		var uiintro = this._poppedfunc();
+		ui.click.touchpop(node.forceclick);
+		var uiintro = node._poppedfunc();
 		if (!uiintro) {
 			return;
 		}
 		if (ui.currentpopped && ui.currentpopped._uiintro) {
 			ui.currentpopped._uiintro.delete();
 			delete ui.currentpopped._uiintro;
+			if (ui.currentpopped._poplayer) {
+				ui.currentpopped._poplayer.remove();
+				delete ui.currentpopped._poplayer;
+			}
+			if (ui.currentpopped._paused2) {
+				game.resume2();
+			}
 		}
-		ui.currentpopped = this;
+		ui.currentpopped = node;
 		uiintro.classList.add("popped");
 		uiintro.classList.add("hoverdialog");
 		uiintro.classList.add("static");
-		this._uiintro = uiintro;
+		node._uiintro = uiintro;
 
 		ui.window.appendChild(uiintro);
-		var width = this._poppedwidth || 330;
-		uiintro.style.width = width + "px";
+		var width = node._poppedwidth || 330;
 		if (get.is.phoneLayout()) {
 			width *= 1.3;
 		}
+		uiintro.style.width = width + "px";
 
 		if (uiintro._heightfixed) {
 			uiintro.style.height = uiintro.content.scrollHeight + "px";
 		} else {
-			var height = this._poppedheight || uiintro.content.scrollHeight;
+			var height = node._poppedheight || uiintro.content.scrollHeight;
 			var height2 = ui.window.offsetHeight - 260;
 			if (get.is.phoneLayout()) {
 				height2 = (ui.window.offsetHeight - 80) / 1.3;
@@ -1354,37 +1466,76 @@ export class Click {
 		} else {
 			uiintro.style.top = "50px";
 		}
-		var left = this.parentNode.offsetLeft + this.offsetLeft + this.offsetWidth / 2 - width / 2;
+		var left = node.parentNode.offsetLeft + node.offsetLeft + node.offsetWidth / 2 - width / 2;
 		if (left < 10) {
 			left = 10;
 		} else if (left + width > ui.window.offsetWidth - 10) {
 			left = ui.window.offsetWidth - width - 10;
 		}
 		uiintro.style.left = left + "px";
-		uiintro._poppedorigin = this;
+		uiintro._poppedorigin = node;
 		if (!lib.config.touchscreen) {
 			uiintro.addEventListener("mouseleave", ui.click.leavehoverpopped);
 		}
+		var outsideHandler = function (evt) {
+			if (_status.touchpopping) return;
+			if (uiintro.contains(evt.target) || node.contains(evt.target)) {
+				return;
+			}
+			document.removeEventListener("pointerdown", outsideHandler, true);
+			document.removeEventListener("touchstart", outsideHandler, true);
+			if (node._uiintro === uiintro) {
+				uiintro.delete();
+				delete node._uiintro;
+				if (ui.currentpopped === node) {
+					delete ui.currentpopped;
+				}
+				if (node._poplayer) {
+					node._poplayer.remove();
+					delete node._poplayer;
+				}
+				if (node._paused2) {
+					game.resume2();
+				}
+			}
+		};
+		setTimeout(function () {
+			if (node._uiintro === uiintro && document.body.contains(uiintro)) {
+				document.addEventListener("pointerdown", outsideHandler, true);
+				document.addEventListener("touchstart", outsideHandler, true);
+			}
+		}, 100);
+
 		ui.click.shortcut(false);
 		if (uiintro._onopen) {
 			uiintro._onopen();
 		}
-		if (this._paused2 && !lib.config.touchscreen) {
+		if (node._paused2) {
 			game.pause2();
 			uiintro.classList.add("static");
 			var layer = ui.create.div(".poplayer", ui.window);
+			node._poplayer = layer;
 			var clicklayer = function (e) {
 				uiintro.delete();
 				layer.remove();
+				delete node._poplayer;
+				if (node._uiintro === uiintro) {
+					delete node._uiintro;
+				}
+				if (ui.currentpopped === node) {
+					delete ui.currentpopped;
+				}
 				game.resume2();
 				e.stopPropagation();
 				return false;
 			};
 			uiintro.style.zIndex = 21;
 			layer.onclick = clicklayer;
+			layer.ontouchend = clicklayer;
 			layer.oncontextmenu = clicklayer;
-			uiintro.addEventListener("mouseleave", clicklayer);
-			uiintro.addEventListener("click", clicklayer);
+			if (!lib.config.touchscreen) {
+				uiintro.addEventListener("mouseleave", clicklayer);
+			}
 		}
 	}
 	hoverpopped_leave() {
@@ -2458,6 +2609,11 @@ export class Click {
 		if (_status.reloading) {
 			return;
 		}
+		if (_status.tempunpop) {
+			_status.tempunpop = false;
+		} else {
+			game.closePopped();
+		}
 		if (_status.clicked || _status.clicked2) {
 			_status.clicked = false;
 			_status.clicked2 = false;
@@ -2522,11 +2678,6 @@ export class Click {
 				// 	ui.chessinfo.classList.remove('zoomed');
 				// }
 			}
-		}
-		if (_status.tempunpop) {
-			_status.tempunpop = false;
-		} else {
-			game.closePopped();
 		}
 		if (typeof _status.event.custom?.add?.window == "function") {
 			_status.event.custom.add.window(clicked);
@@ -2847,30 +2998,16 @@ export class Click {
 			return;
 		}
 		if (this.classList.contains("connect")) {
-			if (game.online) {
-				if (game.onlinezhu) {
-					if (!this.playerid && game.connectPlayers) {
-						if (lib.configOL.mode == "versus" || lib.configOL.mode == "doudizhu") {
-							return;
-						}
-						if (lib.configOL.mode == "identity" && lib.configOL.identity_mode == "zhong") {
-							return;
-						}
-						if (!this.classList.contains("unselectable2") && lib.configOL.number <= 2) {
-							return;
-						}
-						this.classList.toggle("unselectable2");
-						if (this.classList.contains("unselectable2")) {
-							lib.configOL.number--;
-						} else {
-							lib.configOL.number++;
-						}
-						game.send("changeNumConfig", lib.configOL.number, game.connectPlayers.indexOf(this), this.classList.contains("unselectable2"));
-					}
-				}
+			// 客机无权更改座位状态
+			if (game.online && !game.onlinezhu) {
 				return;
 			}
-			if (this.playerid) {
+			// 房主自身座位不可切换
+			if (this === game.me || (game.connectPlayers && this === game.connectPlayers[0])) {
+				return;
+			}
+			// 真实联机玩家：提示是否踢出
+			if (this.playerid && !this.isAi && !String(this.playerid).startsWith("ai_")) {
 				if (this.ws) {
 					if (confirm("是否踢出" + this.nickname + "？")) {
 						var onlineKey = this.ws.onlineKey;
@@ -2892,24 +3029,76 @@ export class Click {
 						lib.node.banned.push(id);
 					}
 				}
-			} else {
-				if (lib.configOL.mode == "versus" || lib.configOL.mode == "doudizhu" || lib.configOL.mode == "single") {
-					return;
-				}
-				if (lib.configOL.mode == "identity" && (lib.configOL.identity_mode == "zhong" || lib.configOL.identity_mode == "purple")) {
-					return;
-				}
-				if (!this.classList.contains("unselectable2") && lib.configOL.number <= 2) {
-					return;
-				}
-				this.classList.toggle("unselectable2");
-				if (this.classList.contains("unselectable2")) {
-					lib.configOL.number--;
+				return;
+			}
+
+			// 空位三状态循环切换：打开位置 -> 电脑 -> 关闭位置 -> 打开位置
+
+			// 状态1：当前是电脑玩家 -> 切换为关闭位置（若模式允许关闭）或打开位置
+			if (this.isAi || (this.playerid && String(this.playerid).startsWith("ai_"))) {
+				this.uninitOL();
+				delete this.playerid;
+				delete this.isAi;
+
+				const canDisable = !(
+					(lib.configOL.number <= 2) ||
+					(lib.configOL.mode == "versus" || lib.configOL.mode == "doudizhu" || lib.configOL.mode == "single") ||
+					(lib.configOL.mode == "identity" && (lib.configOL.identity_mode == "zhong" || lib.configOL.identity_mode == "purple"))
+				);
+
+				if (canDisable) {
+					this.classList.add("unselectable2");
+					if (lib.configOL.number > 2) {
+						lib.configOL.number--;
+					}
 				} else {
-					lib.configOL.number++;
+					this.classList.remove("unselectable2");
 				}
-				game.send("server", "config", lib.configOL);
+
+				if (game.online && game.onlinezhu && game.connectPlayers) {
+					game.send("changeNumConfig", lib.configOL.number, game.connectPlayers.indexOf(this), this.classList.contains("unselectable2"));
+				}
+				if (game.onlineroom) {
+					game.send("server", "config", lib.configOL);
+				}
 				game.updateWaiting();
+				return;
+			}
+
+			// 状态2：当前是关闭位置 -> 切换为打开位置
+			if (this.classList.contains("unselectable2")) {
+				this.classList.remove("unselectable2");
+				this.uninitOL();
+				delete this.playerid;
+				delete this.isAi;
+				lib.configOL.number++;
+
+				if (game.online && game.onlinezhu && game.connectPlayers) {
+					game.send("changeNumConfig", lib.configOL.number, game.connectPlayers.indexOf(this), false);
+				}
+				if (game.onlineroom) {
+					game.send("server", "config", lib.configOL);
+				}
+				game.updateWaiting();
+				return;
+			}
+
+			// 状态3：当前是打开位置（空位） -> 切换为电脑玩家
+			if (!this.playerid) {
+				this.classList.remove("unselectable2");
+				this.playerid = "ai_" + get.id();
+				this.isAi = true;
+				const aiAvatars = ["caocao", "liubei", "sunquan", "zhugeliang", "zhouyu", "simayi", "guanyu", "zhangfei", "zhaoyun"];
+				this.initOL("电脑玩家", aiAvatars.randomGet() || "caocao");
+
+				if (game.online && game.onlinezhu && game.connectPlayers) {
+					game.send("changeNumConfig", lib.configOL.number, game.connectPlayers.indexOf(this), false);
+				}
+				if (game.onlineroom) {
+					game.send("server", "config", lib.configOL);
+				}
+				game.updateWaiting();
+				return;
 			}
 			return;
 		}

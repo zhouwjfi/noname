@@ -376,6 +376,9 @@ export class UI {
 		delete ui._updatexr;
 	}
 	updatexr() {
+		if (ui.isMobileLayoutStable()) {
+			return;
+		}
 		if (ui._updatexr) {
 			clearTimeout(ui._updatexr);
 		}
@@ -591,16 +594,118 @@ export class UI {
 			node.classList.add("fold0");
 		}
 	}
+	/**
+	 * 是否处于移动端环境（原生壳、手机/平板浏览器）
+	 */
+	isMobileDevice() {
+		return !!(
+			lib.device ||
+			(typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) ||
+			(typeof window !== "undefined" && ("ontouchstart" in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0)) && Math.min(window.screen.width, window.screen.height) <= 1024)
+		);
+	}
+	#currentViewportSize() {
+		return {
+			width: document.documentElement.offsetWidth || window.innerWidth || 800,
+			height: document.documentElement.offsetHeight || window.innerHeight || 600
+		};
+	}
+	/**
+	 * —— 移动端视口稳定器 ——
+	 *
+	 * 通知栏/控制中心/状态栏/URL 栏/软键盘等系统级临时遮挡（无论拉出还是收起）
+	 * 一律视为瞬态事件并静默忽略，根容器（body）始终锁定在基准像素尺寸上，
+	 * 保证画面 100% 绝对静止、零重排；仅以下真实尺寸变化允许重新布局：
+	 * 1. 物理屏幕旋转（横竖屏切换）；
+	 * 2. 宽度显著变化（分屏拖动、折叠屏展开，阈值 40px）；
+	 * 3. 全屏等显示模式切换（用户主动意图，由 fullscreenchange 置位 `_viewportModeChanged`）；
+	 * 4. 高度大幅增加（超过基准高度 30%，如桌面端窗口最大化/还原）。
+	 *
+	 * 桌面端不启用稳定器，窗口尺寸变化始终实时重排。
+	 */
+	getStableSize() {
+		const { width: curW, height: curH } = this.#currentViewportSize();
+		if (!this.isMobileDevice()) {
+			this._stableSizes = null;
+			this._lastOrientation = null;
+			return { width: curW, height: curH };
+		}
+		const key = curW >= curH ? "landscape" : "portrait";
+		const stableSizes = (this._stableSizes ??= {
+			landscape: { width: 0, height: 0 },
+			portrait: { width: 0, height: 0 }
+		});
+		const stable = stableSizes[key];
+
+		if (this._lastOrientation !== key || !stable.width || !stable.height) {
+			// 物理屏幕旋转或首次初始化：接受新尺寸
+			this._lastOrientation = key;
+			stable.width = curW;
+			stable.height = curH;
+		} else if (Math.abs(curW - stable.width) > 40) {
+			// 宽度显著变化（分屏/折叠屏形态变化）：接受新尺寸
+			stable.width = curW;
+			stable.height = curH;
+		} else if (this._viewportModeChanged && (curW != stable.width || curH != stable.height)) {
+			// 全屏等显示模式切换导致的尺寸变化：接受新尺寸
+			stable.width = curW;
+			stable.height = curH;
+		} else if (curH > stable.height * 1.3) {
+			// 高度大幅增加：接受新尺寸
+			stable.width = curW;
+			stable.height = curH;
+		}
+		this._viewportModeChanged = false;
+		// 其余情况（高度因系统临时遮挡小幅增减）：维持基准尺寸，画面保持静止
+		return { width: stable.width, height: stable.height };
+	}
+	/**
+	 * 当前视口变化是否属于"系统临时遮挡"（通知栏/软键盘等），应当静默忽略。
+	 * 返回 true 表示画面保持静止、跳过重排；false 表示需要重新布局。
+	 */
+	isMobileLayoutStable() {
+		if (!this.isMobileDevice()) {
+			return false;
+		}
+		const { width: curW, height: curH } = this.#currentViewportSize();
+		const key = curW >= curH ? "landscape" : "portrait";
+		const stableSizes = (this._stableSizes ??= {
+			landscape: { width: 0, height: 0 },
+			portrait: { width: 0, height: 0 }
+		});
+		const stable = stableSizes[key];
+
+		// 物理屏幕旋转或尚未建立基准：需要重排
+		if (this._lastOrientation !== key || !stable.width || !stable.height) {
+			return false;
+		}
+		// 宽度显著变化（分屏/折叠屏）：需要重排
+		if (Math.abs(curW - stable.width) > 40) {
+			return false;
+		}
+		// 全屏等显示模式切换（用户主动意图）：需要重排
+		if (this._viewportModeChanged) {
+			return false;
+		}
+		// 高度大幅增加：需要重排
+		if (curH > stable.height * 1.3) {
+			return false;
+		}
+		// 方向与宽度未变、高度仅因通知栏/状态栏/软键盘等临时遮挡小幅增减：画面保持静止
+		return true;
+	}
 	updated() {
-		if (document.documentElement.offsetWidth < 900 || document.documentElement.offsetHeight < 500) {
-			game.deviceZoom = Math.min(Math.round(document.documentElement.offsetWidth / 98) / 10, Math.round(document.documentElement.offsetHeight / 50) / 10);
+		const size = ui.getStableSize();
+		if (size.width < 900 || size.height < 500) {
+			game.deviceZoom = Math.min(Math.round(size.width / 98) / 10, Math.round(size.height / 50) / 10);
 		} else {
 			game.deviceZoom = 1;
 		}
 	}
 	updatez() {
-		var width = document.documentElement.offsetWidth;
-		var height = document.documentElement.offsetHeight;
+		const size = ui.getStableSize();
+		var width = size.width;
+		var height = size.height;
 		var zoom = game.documentZoom;
 		if (zoom != 1) {
 			document.body.style.width = Math.round(width / zoom) + "px";
@@ -797,6 +902,41 @@ export class UI {
 	updateRoundNumber(roundNumber, cardPileNumber) {
 		if (ui.cardPileNumber) {
 			ui.cardPileNumber.innerHTML = `${roundNumber}轮 剩余牌: ${cardPileNumber}`;
+		}
+	}
+	updateEmptyRooms() {
+		if (!ui.window) return;
+		if (!ui.emptyRoomsNode) {
+			ui.emptyRoomsNode = ui.create.div(".empty-rooms-tip", ui.window);
+			ui.emptyRoomsNode.style.position = "absolute";
+			ui.emptyRoomsNode.style.top = "45%";
+			ui.emptyRoomsNode.style.left = "50%";
+			ui.emptyRoomsNode.style.transform = "translate(-50%, -50%)";
+			ui.emptyRoomsNode.style.width = "auto";
+			ui.emptyRoomsNode.style.height = "auto";
+			ui.emptyRoomsNode.style.whiteSpace = "nowrap";
+			ui.emptyRoomsNode.style.textAlign = "center";
+			ui.emptyRoomsNode.style.color = "rgba(255, 255, 255, 0.9)";
+			ui.emptyRoomsNode.style.textShadow = "0 2px 6px rgba(0, 0, 0, 0.9)";
+			ui.emptyRoomsNode.style.fontFamily = "STKaiti, KaiTi, 楷体, sans-serif";
+			ui.emptyRoomsNode.style.cursor = "pointer";
+			ui.emptyRoomsNode.style.pointerEvents = "auto";
+			ui.emptyRoomsNode.style.zIndex = "10";
+			ui.emptyRoomsNode.onclick = () => {
+				if (ui.createRoomButton) {
+					ui.createRoomButton.click?.() || (ui.createRoomButton.onclick && ui.createRoomButton.onclick());
+				} else if (ui.click?.connectMenu) {
+					ui.click.connectMenu();
+				}
+			};
+			ui.emptyRoomsNode.innerHTML =
+				'<div style="position:relative !important;display:block !important;font-size:22px;margin-bottom:12px;font-weight:bold;letter-spacing:3px;">暂无进行中的房间</div>' +
+				'<div style="position:relative !important;display:inline-block !important;font-size:14px;color:rgba(255,255,255,0.7);padding:8px 20px;background:rgba(0,0,0,0.35);border-radius:18px;border:1px solid rgba(255,255,255,0.2);">点击此处或右下角【创建房间】开启对决</div>';
+		}
+		if (ui.rooms && ui.rooms.length > 0) {
+			ui.emptyRoomsNode.style.display = "none";
+		} else {
+			ui.emptyRoomsNode.style.display = "block";
 		}
 	}
 }

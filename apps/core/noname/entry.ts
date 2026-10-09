@@ -8,6 +8,26 @@ import "vue/dist/vue.esm-browser.prod.js";
 
 (async () => {
 	try {
+		// 端到端自动化测试桥：仅在显式携带 ?test=1 查询参数时暴露引擎内部对象，
+		// 正常用户访问不受影响（dev 模式本身也暴露同等内容，无额外安全面）。
+		// 可选 &hall=<ws-url> 覆盖联机大厅地址，供联机模块对接本地测试服务。
+		const testParams = new URLSearchParams(location.search);
+		if (testParams.get("test") === "1") {
+			// @ts-expect-error 测试专用全局桥
+			window.__noname_test__ = { lib, game, get, _status, ui, ai };
+			const hallOverride = testParams.get("hall");
+			if (hallOverride && /^wss?:\/\//.test(hallOverride)) {
+				lib.hallURL = hallOverride;
+			}
+			// offline=1：本地单机测试场景，跳过联机大厅自动连接
+			// @ts-expect-error 测试标记
+			window.__noname_test_offline__ = testParams.get("offline") === "1";
+		}
+		// @ts-ignore
+		window.__markModulesLoaded?.();
+		// @ts-ignore
+		window.setBootProgress?.(50, "核心引擎加载完毕，正在初始化...", "准备运行时环境");
+
 		lib.device = device;
 
 		// 预加载脚本
@@ -34,6 +54,8 @@ import "vue/dist/vue.esm-browser.prod.js";
 		await boot();
 	} catch (e) {
 		console.error(e);
+		// @ts-ignore
+		window.setBootProgress?.(window.__bootProgressPct || 0, "加载异常", "网络异常或部分组件加载失败");
 		alert(`《无名杀》加载内容失败
 浏览器UA信息: 
 ${userAgentLowerCase}

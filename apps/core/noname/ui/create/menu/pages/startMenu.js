@@ -54,6 +54,11 @@ export const startMenu = function (connectMenu) {
 						game.connectPlayers[0].chat("房间设置已更改");
 					}
 				} else if (_status.enteringroom || _status.creatingroom) {
+					if (_status.creatingroom && ui.rooms && ui.rooms.filter(function (r) { return !r.roomempty; }).length >= 2) {
+						alert("当前房间数量已达上限（最多2个房间），请稍后再试");
+						_status.creatingroom = false;
+						return;
+					}
 					lib.configOL.mode = active.mode;
 					if (_status.enteringroomserver) {
 						game.saveConfig("connect_mode", lib.configOL.mode);
@@ -75,8 +80,8 @@ export const startMenu = function (connectMenu) {
 						for (var i = 0; i < lib.config.connect_cards.length; i++) {
 							config.cardPack.remove(lib.config.connect_cards[i]);
 						}
-						config.banned = lib.config["connect_" + active.mode + "_banned"];
-						config.bannedcards = lib.config["connect_" + active.mode + "_bannedcards"];
+						config.banned = (lib.config["connect_" + active.mode + "_banned"] || lib.config.banned || []).slice();
+						config.bannedcards = (lib.config["connect_" + active.mode + "_bannedcards"] || lib.config.bannedcards || []).slice();
 						game.send("server", "create", game.onlineKey, get.connectNickname(), lib.config.connect_avatar, config, active.mode);
 					} else {
 						game.send("server", "create", game.onlineKey, get.connectNickname(), lib.config.connect_avatar);
@@ -355,10 +360,10 @@ export const startMenu = function (connectMenu) {
 				continue;
 			}
 			if (!lib.config["connect_" + modeorder[i] + "_banned"]) {
-				lib.config["connect_" + modeorder[i] + "_banned"] = [];
+				lib.config["connect_" + modeorder[i] + "_banned"] = (lib.config.banned || ["old_re_lidian", "huaxiong", "re_yuanshu", "gongsunzan", "xf_yiji", "std_panfeng", "ganfuren", "std_yuejin"]).slice();
 			}
 			if (!lib.config["connect_" + modeorder[i] + "_bannedcards"]) {
-				lib.config["connect_" + modeorder[i] + "_bannedcards"] = [];
+				lib.config["connect_" + modeorder[i] + "_bannedcards"] = (lib.config.bannedcards || []).slice();
 			}
 		}
 		if (lib.config.all.mode.includes(modeorder[i])) {

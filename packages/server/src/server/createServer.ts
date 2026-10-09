@@ -41,6 +41,7 @@ interface EventItem {
 export function createServer(options: ServerOptions = {}): ServerInstance {
 	const port = options.port ?? 8082;
 	const trustedProxies = options.trustedProxies ?? [];
+	const maxRooms = options.maxRooms ?? 2;
 
 	const clients = new Map<string, Client>();
 	const rooms = new Map<string, Room>();
@@ -153,6 +154,12 @@ export function createServer(options: ServerOptions = {}): ServerInstance {
 	const handlers: Record<string, (client: Client, ...args: any[]) => void> = {
 		create(client: Client, key: string, nickname: string, avatar: string, config: any, mode: string) {
 			if (client.onlineKey !== key) return;
+
+			// 限制房间数量同时最多只有 maxRooms 个（包括等待中与游戏已开始的所有房间）
+			if (!rooms.has(key) && rooms.size >= maxRooms) {
+				util.sendl(client, "createroomfailed", `当前房间数量已达上限（最多${maxRooms}个房间），请稍后再试`);
+				return;
+			}
 
 			client.nickname = util.nickname(nickname);
 			client.avatar = avatar;
@@ -336,6 +343,35 @@ export function createServer(options: ServerOptions = {}): ServerInstance {
 				return;
 			}
 
+			// 房间内语音消息直接群发给房间内所有其他成员（单跳直达，不占用房主客户端带宽）
+			if (raw.charCodeAt(0) === 91 && raw.includes('"voice"')) {
+				try {
+					const arr = JSON.parse(raw);
+					if (Array.isArray(arr)) {
+						let isVoice = false;
+						let voiceArgs: any[] = [];
+						if (arr[0] === "voice") {
+							isVoice = true;
+							voiceArgs = arr.slice(1);
+						} else if (arr[0] === "server" && arr[1] === "voice") {
+							isVoice = true;
+							voiceArgs = arr.slice(2);
+						}
+						if (isVoice) {
+							const room = client.room;
+							if (room) {
+								clients.forEach(c => {
+									if (c.room === room && c !== client) {
+										util.sendl(c, "voice", client.wsid, ...voiceArgs);
+									}
+								});
+							}
+							return;
+						}
+					}
+				} catch {}
+			}
+
 			// forward from slave to owner
 			if (client.owner) {
 				util.sendl(client.owner, "onmessage", client.wsid, raw);
@@ -363,6 +399,15 @@ export function createServer(options: ServerOptions = {}): ServerInstance {
 		// disconnect handler
 		client.on("close", () => {
 			clearClientTimers(client);
+
+			const currentRoom = client.room;
+			if (currentRoom) {
+				clients.forEach(c => {
+					if (c.room === currentRoom && c !== client) {
+						util.sendl(c, "voice", client.wsid, { type: "state", speaking: false, left: true });
+					}
+				});
+			}
 
 			// remove rooms owned by this client
 			rooms.forEach((room, key) => {
