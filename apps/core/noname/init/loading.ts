@@ -540,16 +540,18 @@ function mixinLibrary(config, lib) {
 	lib.element = mixinElement(config, lib.element);
 	lib.config.banned = lib.config[`${lib.config.mode}_banned`] || [];
 	lib.config.bannedcards = lib.config[`${lib.config.mode}_bannedcards`] || [];
+	// 这三个全局由 character/rank.js、replace.js、perfectPairs.js 注入；
+	// 个别浏览器（如鸿蒙ArkWeb）可能加载失败，兜底空对象避免启动崩溃（武将替换/排行等特性降级）
 	// @ts-expect-error ignore
-	lib.rank = window.noname_character_rank;
+	lib.rank = window.noname_character_rank || {};
 	// @ts-expect-error ignore
 	delete window.noname_character_rank;
 	// @ts-expect-error ignore
-	Object.keys(window.noname_character_replace).forEach(i => (lib.characterReplace[i] = window.noname_character_replace[i]));
+	Object.keys(window.noname_character_replace || {}).forEach(i => (lib.characterReplace[i] = window.noname_character_replace[i]));
 	// @ts-expect-error ignore
 	delete window.noname_character_replace;
 	// @ts-expect-error ignore
-	Object.keys(window.noname_character_perfectPairs).forEach(i => (lib.perfectPair[i] = window.noname_character_perfectPairs[i]));
+	Object.keys(window.noname_character_perfectPairs || {}).forEach(i => (lib.perfectPair[i] = window.noname_character_perfectPairs[i]));
 	// @ts-expect-error ignore
 	delete window.noname_character_perfectPairs;
 

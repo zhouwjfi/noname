@@ -399,6 +399,25 @@ export async function boot() {
 
 	await Promise.allSettled(wrappedToLoad);
 
+	// 三个武将元数据脚本由 character/rank.js 等注入全局；boot 用 allSettled 会吞掉加载失败，
+	// 缺失会让 mixinLibrary 崩溃（如鸿蒙ArkWeb偶发加载失败）。此处校验并重试一次。
+	const characterMetaFiles = [
+		["rank", "noname_character_rank"],
+		["replace", "noname_character_replace"],
+		["perfectPairs", "noname_character_perfectPairs"],
+	];
+	for (const [file, globalKey] of characterMetaFiles) {
+		// @ts-expect-error ignore
+		if (window[globalKey]) {
+			continue;
+		}
+		try {
+			await lib.init.promises.js(`${lib.assetURL}character`, file);
+		} catch (e) {
+			console.error(`武将元数据脚本加载失败: character/${file}.js`, e);
+		}
+	}
+
 	if (_status.importing) {
 		let promises = [];
 		for (const type in _status.importing) {
