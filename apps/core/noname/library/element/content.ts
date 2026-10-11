@@ -4503,8 +4503,10 @@ export const Content: Record<string, ContentFuncByAll | ContentFuncsByAll> = {
 		await game.pause();
 
 		_status.waitingForPlayer = false;
-		lib.configOL.gameStarted = true;
 		if (game.onlineroom) {
+			// 仅真实房间的开局才标记 gameStarted：无刷新退房/被踢后此续体会被 forceOver
+			// 唤醒执行，此时房间已不在，写入会污染下一次建房配置
+			lib.configOL.gameStarted = true;
 			game.send("server", "config", lib.configOL);
 		}
 		for (const player of game.connectPlayers) {

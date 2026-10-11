@@ -165,6 +165,9 @@ export function createServer(options: ServerOptions = {}): ServerInstance {
 			client.avatar = avatar;
 
 			const room: Room = { key, owner: client };
+			// 菜单随 create 附带的配置即刻生效，房间在列表中立即呈现正确配置，
+			// 不必等待房主进入等待房间后的 config 上报
+			if (config && typeof config === "object") room.config = config;
 			rooms.set(key, room);
 
 			client.room = room;

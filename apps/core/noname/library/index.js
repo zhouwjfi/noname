@@ -12874,6 +12874,9 @@ export class Library {
 				clearTimeout(_status.roomtimeout);
 				delete _status.roomtimeout;
 				// 不清理 _status.event/_status.paused：若正在对局中，交给 roomlist 的 forceOver 流程统一收尾
+				// 重置联机配置：无刷新退房没有整页刷新来重置 lib.configOL，
+				// 残留的旧房间配置（人数、gameStarted 等）会污染下一局
+				lib.configOL = {};
 				game.clearArena();
 				game.clearConnect();
 				ui.pause.hide();
@@ -12923,6 +12926,8 @@ export class Library {
 				game.observe = false;
 				game.roomId = null;
 				if (wasInRoom) {
+					// 被踢成员的 configOL 同样被上一局污染（僵尸收尾会写入 gameStarted 等），一并重置
+					lib.configOL = {};
 					game.saveConfig("tmp_owner_roomId");
 					game.saveConfig("tmp_user_roomId");
 					game.saveConfig("reconnect_info");
