@@ -377,8 +377,12 @@ export class UI {
 	}
 	updatexr() {
 		if (ui.isMobileLayoutStable()) {
+			// 尺寸被判定为瞬态遮挡而保持静止时，若偏离基准持续存在（系统栏永久变化），
+			// 由持久化计时器在静置一段时间后接受为新基准
+			ui.#viewportSettleCheck();
 			return;
 		}
+		ui.#viewportSettleCancel();
 		if (ui._updatexr) {
 			clearTimeout(ui._updatexr);
 		}
@@ -619,7 +623,9 @@ export class UI {
 	 * 1. 物理屏幕旋转（横竖屏切换）；
 	 * 2. 宽度显著变化（分屏拖动、折叠屏展开，阈值 40px）；
 	 * 3. 全屏等显示模式切换（用户主动意图，由 fullscreenchange 置位 `_viewportModeChanged`）；
-	 * 4. 高度大幅增加（超过基准高度 30%，如桌面端窗口最大化/还原）。
+	 * 4. 高度大幅增加（超过基准高度 30%，如桌面端窗口最大化/还原）；
+	 * 5. 适度幅度（≤100px 且 ≤15%）的尺寸变化持续 5 秒仍不回归基准
+	 *    （系统栏永久出现/消失，如 PWA 全屏显示模式被系统降级后未还原）。
 	 *
 	 * 桌面端不启用稳定器，窗口尺寸变化始终实时重排。
 	 */
@@ -646,8 +652,14 @@ export class UI {
 			// 宽度显著变化（分屏/折叠屏形态变化）：接受新尺寸
 			stable.width = curW;
 			stable.height = curH;
+		} else if (window._nonameFullscreenRestorePending) {
+			// 全屏恢复挂起中（通知栏等系统性退出全屏）：锁定基准尺寸等待手势恢复
 		} else if (this._viewportModeChanged && (curW != stable.width || curH != stable.height)) {
 			// 全屏等显示模式切换导致的尺寸变化：接受新尺寸
+			stable.width = curW;
+			stable.height = curH;
+		} else if (this._viewportSettleAccept && (curW != stable.width || curH != stable.height)) {
+			// 持续性适度尺寸变化（计时器判定为永久性系统栏变化）：接受新尺寸
 			stable.width = curW;
 			stable.height = curH;
 		} else if (curH > stable.height * 1.3) {
@@ -656,6 +668,7 @@ export class UI {
 			stable.height = curH;
 		}
 		this._viewportModeChanged = false;
+		this._viewportSettleAccept = false;
 		// 其余情况（高度因系统临时遮挡小幅增减）：维持基准尺寸，画面保持静止
 		return { width: stable.width, height: stable.height };
 	}
@@ -683,6 +696,10 @@ export class UI {
 		if (Math.abs(curW - stable.width) > 40) {
 			return false;
 		}
+		// 全屏恢复挂起中：画面保持静止，等待下一次手势恢复全屏
+		if (window._nonameFullscreenRestorePending) {
+			return true;
+		}
 		// 全屏等显示模式切换（用户主动意图）：需要重排
 		if (this._viewportModeChanged) {
 			return false;
@@ -693,6 +710,50 @@ export class UI {
 		}
 		// 方向与宽度未变、高度仅因通知栏/状态栏/软键盘等临时遮挡小幅增减：画面保持静止
 		return true;
+	}
+	/**
+	 * 持久化判定：视口以适度幅度偏离基准并持续 ViewportSettleDelay 后，
+	 * 视为永久性系统栏变化（如 PWA 全屏显示模式被系统降级且未还原），接受为新基准。
+	 * 软键盘等大幅遮挡（>100px 或 >15%）永不自动接受。
+	 */
+	#viewportSettleCheck() {
+		if (window._nonameFullscreenRestorePending || this._viewportSettleTimer) {
+			return;
+		}
+		const { width: curW, height: curH } = this.#currentViewportSize();
+		const key = curW >= curH ? "landscape" : "portrait";
+		const stable = this._stableSizes?.[key];
+		if (!stable || !stable.width) {
+			return;
+		}
+		if (curW === stable.width && curH === stable.height) {
+			this.#viewportSettleCancel();
+			return;
+		}
+		if (Math.abs(curW - stable.width) > 40) {
+			return;
+		}
+		if (Math.abs(curH - stable.height) > Math.max(100, stable.height * 0.15)) {
+			return;
+		}
+		this._viewportSettleTimer = setTimeout(
+			function () {
+				this._viewportSettleTimer = null;
+				// 计时到期时复核：尺寸仍偏离基准才接受，避免收起后误重排
+				const size = this.#currentViewportSize();
+				if (size.width !== stable.width || size.height !== stable.height) {
+					this._viewportSettleAccept = true;
+					ui.updatex();
+				}
+			}.bind(this),
+			5000
+		);
+	}
+	#viewportSettleCancel() {
+		if (this._viewportSettleTimer) {
+			clearTimeout(this._viewportSettleTimer);
+			this._viewportSettleTimer = null;
+		}
 	}
 	updated() {
 		const size = ui.getStableSize();

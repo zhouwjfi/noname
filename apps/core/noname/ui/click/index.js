@@ -1048,6 +1048,8 @@ export class Click {
 		);
 		if (isFs) {
 			window._nonameUserWantsFullscreen = false;
+			// 用户主动退出全屏：取消挂起的自动恢复
+			delete window._nonameFullscreenRestorePending;
 			const exit =
 				doc.exitFullscreen ||
 				doc.webkitExitFullscreen ||

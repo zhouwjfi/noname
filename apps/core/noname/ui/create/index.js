@@ -8,6 +8,52 @@ import { otherMenu } from "./menu/pages/otherMenu.js";
 import { startMenu } from "./menu/pages/startMenu.js";
 import { Pagination } from "@/util/pagination.js";
 
+let fullscreenRestoreBound = false;
+/**
+ * 系统性退出全屏（下拉通知栏/切后台等）后挂起恢复：
+ * 不立即重排，在下一次用户手势时静默重新请求全屏；恢复失败才接受新尺寸。
+ */
+function scheduleFullscreenRestore() {
+	if (window._nonameFullscreenRestorePending) {
+		return;
+	}
+	window._nonameFullscreenRestorePending = true;
+	if (fullscreenRestoreBound) {
+		return;
+	}
+	fullscreenRestoreBound = true;
+	const tryRestore = function () {
+		if (!window._nonameFullscreenRestorePending) {
+			return;
+		}
+		delete window._nonameFullscreenRestorePending;
+		const docEl = document.documentElement;
+		const enter =
+			docEl.requestFullscreen ||
+			docEl.webkitRequestFullscreen ||
+			// @ts-ignore
+			docEl.mozRequestFullScreen ||
+			// @ts-ignore
+			docEl.msRequestFullscreen;
+		if (enter && document.fullscreenEnabled !== false) {
+			const request = enter.call(docEl);
+			if (request && request.catch) {
+				request.catch(() => {
+					// 恢复失败（如缺少用户激活）：接受当前视口尺寸并重排
+					ui._viewportModeChanged = true;
+					ui.updatexr();
+				});
+			}
+		} else {
+			ui._viewportModeChanged = true;
+			ui.updatexr();
+		}
+	};
+	for (const type of ["pointerdown", "touchend", "keydown"]) {
+		document.addEventListener(type, tryRestore, { capture: true, passive: true });
+	}
+}
+
 export function updateFullscreenState() {
 	const doc = document;
 	const isFs = !!(
@@ -20,6 +66,10 @@ export function updateFullscreenState() {
 	);
 	if (isFs) {
 		window._nonameUserWantsFullscreen = true;
+		delete window._nonameFullscreenRestorePending;
+	} else if (window._nonameUserWantsFullscreen && ui.isMobileDevice()) {
+		// 非用户主动退出（下拉通知栏等系统行为）：不立即重排，挂起等待下一次手势恢复全屏
+		scheduleFullscreenRestore();
 	}
 	const text = isFs ? "退出全屏" : "进入全屏";
 	if (ui.fullscreen) {
@@ -28,9 +78,11 @@ export function updateFullscreenState() {
 	if (ui.fullscreenLobby) {
 		ui.fullscreenLobby.innerHTML = text;
 	}
-	// 全屏属于用户主动意图导致的显示模式切换：置位标记并请求重排，
-	// 让视口稳定器接受新的可用尺寸（区别于通知栏等被动临时遮挡）
-	ui._viewportModeChanged = true;
+	// 进入全屏或用户主动退出全屏：接受新视口尺寸并重排；
+	// 系统性退出全屏且恢复挂起中：保持原尺寸，画面静止等待恢复
+	if (isFs || !window._nonameFullscreenRestorePending) {
+		ui._viewportModeChanged = true;
+	}
 	ui.updatexr();
 }
 
