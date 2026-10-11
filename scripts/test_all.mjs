@@ -28,6 +28,9 @@ const MODULES = [
 	["test_gameplay_modes.mjs", "模块三：游戏玩法与出牌流程"],
 	["test_multiplayer_network.mjs", "模块四：联机大厅与网络协议"],
 	["test_assets_integrity.mjs", "模块五：资源完整性"],
+	["test_leave_room.mjs", "模块六：房间主动离房协议"],
+	["test_leave_room_e2e.mjs", "模块七：无刷新退出房间 E2E"],
+	["test_fullscreen_stability.mjs", "模块八：全屏与通知栏视口状态机"],
 ];
 
 const args = argv.slice(2);
