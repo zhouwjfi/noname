@@ -571,6 +571,9 @@ export class Click {
 		}
 	}
 	exit() {
+		if (!ui.exit?.stay && lib.message.client.leaveRoom?.()) {
+			return;
+		}
 		if (game.voice) {
 			game.voice.onRoomLeave();
 		}

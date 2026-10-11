@@ -10738,6 +10738,16 @@ export class Library {
 					_status.connectCallback(false);
 					delete _status.connectCallback;
 				}
+				if (_status.leavingRoom) {
+					// 主动离房过程中连接被关闭：不触发重载，仅复位连接状态
+					delete _status.leavingRoom;
+					clearTimeout(_status.leaveRoomTimeout);
+					delete _status.leaveRoomTimeout;
+					game.online = false;
+					game.ws = null;
+					game.sandbox = null;
+					return;
+				}
 				if (game.online || game.onlineroom) {
 					if ((game.servermode || game.onlinehall) && _status.over) {
 						void 0;
@@ -12827,12 +12837,60 @@ export class Library {
 				}
 				game.ws.close();
 			},
+			leaveRoom: function () {
+				if (!game.ws || game.ws.readyState !== WebSocket.OPEN || (!game.onlineroom && typeof game.roomId !== "string" && !game.observe)) {
+					return false;
+				}
+				if (game.voice) {
+					game.voice.onRoomLeave();
+				}
+				// game.send 会丢弃旁观者的消息，必须先复位 observe 再发送离房请求
+				game.observe = false;
+				_status.leavingRoom = true;
+				game.send("server", "leave");
+				clearTimeout(_status.leaveRoomTimeout);
+				_status.leaveRoomTimeout = setTimeout(function () {
+					delete _status.leaveRoomTimeout;
+					// 服务端未响应离房请求（旧版服务端不识别 leave 消息）时，回退到整页重载
+					if (_status.leavingRoom) {
+						delete _status.leavingRoom;
+						game.reload();
+					}
+				}, 4000);
+				game.saveConfig("tmp_owner_roomId");
+				game.saveConfig("tmp_user_roomId");
+				game.saveConfig("reconnect_info");
+				game.roomId = null;
+				game.onlineID = null;
+				game.online = true;
+				game.onlineroom = false;
+				game.onlinehall = true;
+				game.servermode = false;
+				_status.over = false;
+				_status.gameStarted = false;
+				_status.connectMode = true;
+				_status.enteringroom = false;
+				_status.creatingroom = false;
+				clearTimeout(_status.roomtimeout);
+				delete _status.roomtimeout;
+				// 不清理 _status.event/_status.paused：若正在对局中，交给 roomlist 的 forceOver 流程统一收尾
+				game.clearArena();
+				game.clearConnect();
+				ui.pause.hide();
+				ui.auto.hide();
+				ui.create.connecting(true);
+				return true;
+			},
 			reloadroom: function (forced) {
 				// if (window.isNonameServer && (forced || !_status.protectingroom)) {
 				// 	game.reload();
 				// }
 			},
 			createroom: function (index, config, mode) {
+				if (ui.emptyRoomsNode) {
+					ui.emptyRoomsNode.remove();
+					delete ui.emptyRoomsNode;
+				}
 				game.online = false;
 				game.onlineroom = true;
 				game.roomId = index;
@@ -12851,6 +12909,24 @@ export class Library {
 				ui.create.connecting(true);
 			},
 			roomlist: function (list, events, clients, wsid) {
+				delete _status.leavingRoom;
+				clearTimeout(_status.leaveRoomTimeout);
+				delete _status.leaveRoomTimeout;
+				// 房主离开销毁房间后，成员会在仍在房间状态时收到 roomlist，这里统一复位房间态；
+				// 仅在确实处于房间态时清理重连信息，避免破坏"刷新页面后自动重连"流程
+				var wasInRoom = game.onlineroom || typeof game.roomId == "string" || game.observe;
+				if (game.voice) {
+					game.voice.onRoomLeave();
+				}
+				game.onlineroom = false;
+				game.servermode = false;
+				game.observe = false;
+				game.roomId = null;
+				if (wasInRoom) {
+					game.saveConfig("tmp_owner_roomId");
+					game.saveConfig("tmp_user_roomId");
+					game.saveConfig("reconnect_info");
+				}
 				game.send("server", "key", [game.onlineKey, lib.version]);
 				game.online = true;
 				game.onlinehall = true;
@@ -12929,6 +13005,9 @@ export class Library {
 					ui.exitroom = ui.create.system(
 						"退出房间",
 						function () {
+							if (lib.message.client.leaveRoom()) {
+								return;
+							}
 							game.saveConfig("tmp_owner_roomId");
 							game.saveConfig("tmp_user_roomId");
 							if (ui.rooms) {
@@ -13008,6 +13087,13 @@ export class Library {
 					lib.init.onfree();
 				};
 				if (_status.event.parent) {
+					// 先终结当前运行链的最顶层未完结事件再 forceOver：被唤醒的暂停若让外层模式事件继续，
+					// 会执行残留的开局步骤（如等待房间补AI自动开局）或残留的后续回合
+					var rootEvt = _status.event;
+					while (rootEvt.parent && !rootEvt.parent.finished) {
+						rootEvt = rootEvt.parent;
+					}
+					rootEvt.finish();
 					game.forceOver("noover", proceed);
 				} else {
 					proceed();
@@ -13208,6 +13294,13 @@ export class Library {
 					});
 				};
 				if (_status.event.parent) {
+					// 先终结当前运行链的最顶层未完结事件再 forceOver：被唤醒的暂停若让外层模式事件继续，
+					// 会执行残留的开局步骤（如等待房间补AI自动开局）或残留的后续回合
+					var rootEvt = _status.event;
+					while (rootEvt.parent && !rootEvt.parent.finished) {
+						rootEvt = rootEvt.parent;
+					}
+					rootEvt.finish();
 					game.forceOver("noover", proceed);
 				} else {
 					proceed();

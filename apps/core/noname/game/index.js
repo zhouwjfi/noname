@@ -9153,6 +9153,10 @@ ${e instanceof Error ? e.stack : String(e)}`);
 			ui.roombase.remove();
 			delete ui.roombase;
 		}
+		if (ui.emptyRoomsNode) {
+			ui.emptyRoomsNode.remove();
+			delete ui.emptyRoomsNode;
+		}
 		if (!ui.connectEvents) {
 			return;
 		}

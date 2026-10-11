@@ -293,6 +293,41 @@ export function createServer(options: ServerOptions = {}): ServerInstance {
 			}
 		},
 
+		leave(client: Client) {
+			const room = client.room;
+			if (!room) return;
+
+			const formerMembers: Client[] = [];
+			if (room.owner === client) {
+				rooms.delete(room.key);
+				clients.forEach(c => {
+					if (c.room !== room || c === client) return;
+					formerMembers.push(c);
+					c.room = undefined;
+					c.owner = undefined;
+					util.sendl(c, "voice", client.wsid, { type: "state", speaking: false, left: true });
+				});
+			} else {
+				const owner = client.owner || room.owner;
+				client.room = undefined;
+				client.owner = undefined;
+				if (owner) util.sendl(owner, "onclose", client.wsid);
+				if (owner) util.sendl(owner, "voice", client.wsid, { type: "state", speaking: false, left: true });
+			}
+
+			client.room = undefined;
+			client.owner = undefined;
+			util.updateRooms();
+			util.updateClients();
+			const roomList = util.buildRoomList();
+			const eventsList = util.checkEvents();
+			const clientList = util.buildClientList();
+			util.sendl(client, "roomlist", roomList, eventsList, clientList, client.wsid);
+			formerMembers.forEach(member => {
+				util.sendl(member, "roomlist", roomList, eventsList, clientList, member.wsid);
+			});
+		},
+
 		close(client: Client, id: string) {
 			const target = clients.get(id);
 			if (target && target.owner === client) target.close();
@@ -374,6 +409,13 @@ export function createServer(options: ServerOptions = {}): ServerInstance {
 
 			// forward from slave to owner
 			if (client.owner) {
+				try {
+					const message = JSON.parse(raw);
+					if (Array.isArray(message) && message[0] === "server" && message[1] === "leave") {
+						handlers.leave(client);
+						return;
+					}
+				} catch {}
 				util.sendl(client.owner, "onmessage", client.wsid, raw);
 				return;
 			}
